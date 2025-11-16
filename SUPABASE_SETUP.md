@@ -360,3 +360,103 @@ Endpoints:
 - Delete test files after successful implementation
 - Follow the system flow as specified in requirements
 
+---
+
+## Deployment on Vercel 🚀
+
+### What you\u2019ll deploy
+- Frontend (Vite) as a static site on Vercel
+- Backend API as Vercel Serverless Functions mounted at `/api/*`
+
+### 1) Prepare environment variables
+Set these in your Vercel project under \"Settings \u2192 Environment Variables\":
+
+Frontend (used by Vite build):
+- `VITE_SUPABASE_URL` = `https://your-project-id.supabase.co`
+- `VITE_SUPABASE_ANON_KEY` = `<your-actual-anon-key>`
+- `VITE_API_URL` = `https://<your-vercel-project>.vercel.app/api`
+
+Backend (serverless functions):
+- `SUPABASE_URL` = `https://your-project-id.supabase.co`
+- `SUPABASE_SERVICE_KEY` = `<your-actual-service-role-key>`
+- `SUPABASE_ANON_KEY` = `<your-actual-anon-key>` (optional)
+- `JWT_SECRET` = `<random-secret>`
+- `NODE_ENV` = `production`
+
+Tip: Generate a secure JWT secret: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+
+### 2) Configure routing in `vercel.json`
+Update your `vercel.json` to send API traffic to serverless functions and keep SPA routing for the frontend:
+
+```json
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "installCommand": "npm ci",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/server.js" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+```
+
+### 3) Create the serverless wrapper for Express
+Vercel expects files under `/api` to export a handler. Create `api/server.js` that wraps the existing Express app from `backend/server.js`:
+
+```js
+// api/server.js
+import app from "../backend/server.js";
+
+export default function handler(req, res) {
+  return app(req, res); // Delegates handling to Express
+}
+```
+
+Your existing `backend/server.js` already `export default app;` which allows the wrapper above to work. The wrapper mounts all your routes (e.g., `/api/*`, `/api/health`) via Vercel functions.
+
+### 4) CORS configuration
+In `backend/server.js`, configure CORS to allow your Vercel domain:
+
+```js
+// Example CORS config (documentation only)
+// app.use(cors({
+//   origin: ["https://<your-vercel-project>.vercel.app"],
+//   credentials: true
+// }));
+```
+
+Ensure your frontend requests use `VITE_API_URL` pointing to `https://<your-vercel-project>.vercel.app/api`.
+
+### 5) Deploy
+Option A \u2014 Dashboard (recommended for first deploy):
+1. Push your repo to GitHub/GitLab/Bitbucket.
+2. Import the project on Vercel.
+3. Set environment variables (Preview/Production).
+4. Deploy. Vercel will build the frontend (`vite build`) and expose serverless functions under `/api`.
+
+Option B \u2014 CLI:
+1. Install CLI: `npm i -g vercel`
+2. In the project root: `vercel --yes`
+3. For production: `vercel --prod --yes`
+
+### 6) Verify
+- Frontend: `https://<your-vercel-project>.vercel.app`
+- API health: `https://<your-vercel-project>.vercel.app/api/health`
+- Check Vercel \"Functions\" and \"Logs\" for serverless output.
+
+### 7) Notes & limitations
+- Serverless functions have execution time limits and cold starts; avoid long-running tasks.
+- File uploads should stream to object storage (e.g., Supabase Storage) rather than disk.
+- WebSockets/realtime: Use Supabase Realtime for live features; serverless functions are not suited to persistent connections.
+- If you prefer a dedicated backend server (always-on, sockets), deploy Express on Render/Railway/Fly.io and point `VITE_API_URL` there.
+
+### 8) Quick checklist
+- `vercel.json` rewrites include `/api/(.*)` \u2192 `/api/server.js`
+- `api/server.js` exists and delegates to `backend/server.js`
+- Environment variables set in Vercel for both frontend (VITE_*) and backend
+- CORS allows your Vercel domain
+- Frontend uses `VITE_API_URL` to call `/api/*`
+- `/api/health` returns OK in production
+
