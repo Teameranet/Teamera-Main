@@ -226,3 +226,93 @@ Visit `http://localhost:5000/health` to check server status.
 ## API Documentation
 
 Visit `http://localhost:5000/api` for complete API endpoint documentation.
+
+## Deploy on Vercel (Serverless)
+
+This section explains how to deploy the Node/Express + MongoDB backend to Vercel using Serverless Functions.
+
+### Prerequisites
+- Use MongoDB Atlas and copy your connection string (recommended for production). Ensure your cluster allows connections from Vercel by whitelisting IPs or using u201cAllow access from anywhereu201d for testing.
+- Prepare environment variables: `MONGODB_URI`, `JWT_SECRET`, `JWT_EXPIRE`, `NODE_ENV=production`, `FRONTEND_URL` (your deployed frontend domain), `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX_REQUESTS`.
+- Update CORS to allow your Vercel frontend domain (e.g., `https://your-frontend.vercel.app`).
+
+### Prepare Express for Serverless
+To run Express on Vercel Serverless Functions, export the Express app without calling `app.listen` inside the function:
+
+1) Create a reusable app module (e.g., `backend/app.js`) that exports the Express instance (middleware, routes, etc.).
+2) Keep `backend/server.js` for local development (it imports the app and calls `app.listen` when running locally).
+3) Create a serverless function entry (e.g., `api/index.js`) that wraps the app with `serverless-http` and exports a handler.
+
+Example structure (indicative):
+
+```js
+// backend/app.js
+const express = require('express');
+const app = express();
+// ... your middleware, routes, and configurations ...
+module.exports = app;
+```
+
+```js
+// backend/server.js (local dev)
+const app = require('./app');
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+```
+
+```js
+// api/index.js (Vercel serverless function)
+const serverless = require('serverless-http');
+const app = require('../backend/app');
+module.exports = serverless(app);
+```
+
+Install the adapter:
+
+```bash
+npm install serverless-http
+```
+
+### vercel.json configuration
+Add routing so all `/api/*` requests hit the serverless function and set a reasonable timeout:
+
+```json
+{
+  "version": 2,
+  "builds": [{ "src": "api/index.js", "use": "@vercel/node" }],
+  "routes": [{ "src": "/api/(.*)", "dest": "/api/index.js" }],
+  "functions": { "api/index.js": { "maxDuration": 30 } }
+}
+```
+
+### Environment Variables on Vercel
+- In Vercel Dashboard: Project u2192 Settings u2192 Environment Variables.
+- Add: `MONGODB_URI`, `JWT_SECRET`, `JWT_EXPIRE`, `NODE_ENV=production`, `FRONTEND_URL`, `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX_REQUESTS`.
+- Redeploy to apply changes.
+
+### Deploy Steps
+- Via CLI:
+  - First deployment: `npx vercel --yes`
+  - Production deployment: `npx vercel --prod --yes`
+- Or import the repository in Vercel Dashboard and deploy from there.
+
+### Update Frontend API Base URL
+- Point your frontend to: `https://<your-project>.vercel.app/api`.
+- Example: `fetch('https://<your-project>.vercel.app/api/projects')`.
+
+### Health Check
+- After deploying, verify with: `https://<your-project>.vercel.app/api/health` (or your health endpoint under `/api`).
+
+### Real-time & WebSockets
+- Vercel Serverless Functions are not ideal for long-lived WebSocket connections (Socket.io). Consider:
+  - Hosting realtime services on Render, Railway, Fly.io, or a dedicated VM.
+  - Using Vercel WebSockets (beta) if available, or third-party providers like Ably/Pusher.
+
+### Common Pitfalls & Tips
+- Cold starts: Minimize per-request heavy initialization.
+- Database connections: Create and cache the Mongoose connection outside the handler so invocations reuse it.
+- Timeouts: Keep handlers fast; use queues/background workers for long tasks and set `functions.maxDuration` appropriately.
+- File uploads: Use cloud storage (e.g., S3) and pre-signed URLs instead of handling large uploads in serverless.
+- CORS: Ensure `FRONTEND_URL` matches your deployed domain.
+
+With this setup, your API will be available at `https://<your-project>.vercel.app/api/*`, and your frontend can interact with it securely using MongoDB Atlas.
