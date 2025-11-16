@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Check for existing user session
-    const savedUser = localStorage.getItem('solvearn_user');
+    const savedUser = localStorage.getItem('teamera_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
@@ -32,13 +32,13 @@ export const AuthProvider = ({ children }) => {
     // Store profile data if it's a new user or has extended profile info
     const storedUser = await storeUserProfile(userData);
     setUser(storedUser);
-    localStorage.setItem('solvearn_user', JSON.stringify(storedUser));
+    localStorage.setItem('teamera_user', JSON.stringify(storedUser));
     setShowAuthModal(false);
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('solvearn_user');
+    localStorage.removeItem('teamera_user');
   };
 
   const signup = async (userData) => {
@@ -71,7 +71,7 @@ export const AuthProvider = ({ children }) => {
       // Update locally first for immediate UI feedback
       const updatedUser = { ...user, ...profileData };
       setUser(updatedUser);
-      localStorage.setItem('solvearn_user', JSON.stringify(updatedUser));
+      localStorage.setItem('teamera_user', JSON.stringify(updatedUser));
 
       // Sync with backend if user has an ID
       if (user?.id) {
@@ -87,7 +87,7 @@ export const AuthProvider = ({ children }) => {
           const result = await response.json();
           const backendUser = result.data;
           setUser(backendUser);
-          localStorage.setItem('solvearn_user', JSON.stringify(backendUser));
+          localStorage.setItem('teamera_user', JSON.stringify(backendUser));
           return { success: true, user: backendUser };
         } else {
           console.error('Failed to sync profile with backend');
