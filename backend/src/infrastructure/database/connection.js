@@ -11,7 +11,7 @@
  * - Can be swapped without affecting domain/application layers
  */
 
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 /**
  * Database connection configuration options
@@ -27,9 +27,9 @@ const defaultOptions = {
 };
 
 /**
- * Connection state tracking
+ * Connection state tracking (renamed to avoid conflict with class method)
  */
-let isConnected = false;
+let _connectionState = false;
 let connectionAttempts = 0;
 const MAX_RETRY_ATTEMPTS = 5;
 const RETRY_DELAY_MS = 5000;
@@ -52,9 +52,9 @@ class DatabaseConnection {
 
     if (!uri) {
       // Default to local MongoDB for development
-      const dbName = process.env.DB_NAME || 'teamera';
-      const host = process.env.DB_HOST || 'localhost';
-      const port = process.env.DB_PORT || '27017';
+      const dbName = process.env.DB_NAME || "teamera";
+      const host = process.env.DB_HOST || "localhost";
+      const port = process.env.DB_PORT || "27017";
       return `mongodb://${host}:${port}/${dbName}`;
     }
 
@@ -67,8 +67,8 @@ class DatabaseConnection {
    * @returns {Promise<mongoose.Connection>}
    */
   async connect(options = {}) {
-    if (isConnected && this.connection) {
-      console.log('📦 Using existing database connection');
+    if (_connectionState && this.connection) {
+      console.log("📦 Using existing database connection");
       return this.connection;
     }
 
@@ -76,7 +76,7 @@ class DatabaseConnection {
     const connectionOptions = { ...defaultOptions, ...options };
 
     try {
-      console.log('🔄 Connecting to MongoDB...');
+      console.log("🔄 Connecting to MongoDB...");
 
       // Set up connection event handlers
       this.setupEventHandlers();
@@ -85,15 +85,15 @@ class DatabaseConnection {
       await mongoose.connect(this.uri, connectionOptions);
 
       this.connection = mongoose.connection;
-      isConnected = true;
+      _connectionState = true;
       connectionAttempts = 0;
 
-      console.log('✅ MongoDB connected successfully');
+      console.log("✅ MongoDB connected successfully");
       console.log(`📍 Database: ${this.getDatabaseName()}`);
 
       return this.connection;
     } catch (error) {
-      console.error('❌ MongoDB connection error:', error.message);
+      console.error("❌ MongoDB connection error:", error.message);
       return this.handleConnectionError(error, options);
     }
   }
@@ -102,28 +102,28 @@ class DatabaseConnection {
    * Set up mongoose connection event handlers
    */
   setupEventHandlers() {
-    mongoose.connection.on('connected', () => {
-      console.log('📗 Mongoose connected to database');
-      isConnected = true;
+    mongoose.connection.on("connected", () => {
+      console.log("📗 Mongoose connected to database");
+      _connectionState = true;
     });
 
-    mongoose.connection.on('error', (err) => {
-      console.error('📕 Mongoose connection error:', err.message);
+    mongoose.connection.on("error", (err) => {
+      console.error("📕 Mongoose connection error:", err.message);
     });
 
-    mongoose.connection.on('disconnected', () => {
-      console.log('📙 Mongoose disconnected from database');
-      isConnected = false;
+    mongoose.connection.on("disconnected", () => {
+      console.log("📙 Mongoose disconnected from database");
+      _connectionState = false;
     });
 
-    mongoose.connection.on('reconnected', () => {
-      console.log('📘 Mongoose reconnected to database');
-      isConnected = true;
+    mongoose.connection.on("reconnected", () => {
+      console.log("📘 Mongoose reconnected to database");
+      _connectionState = true;
     });
 
     // Handle process termination
-    process.on('SIGINT', this.gracefulShutdown.bind(this, 'SIGINT'));
-    process.on('SIGTERM', this.gracefulShutdown.bind(this, 'SIGTERM'));
+    process.on("SIGINT", this.gracefulShutdown.bind(this, "SIGINT"));
+    process.on("SIGTERM", this.gracefulShutdown.bind(this, "SIGTERM"));
   }
 
   /**
@@ -137,7 +137,7 @@ class DatabaseConnection {
 
     if (connectionAttempts < MAX_RETRY_ATTEMPTS) {
       console.log(
-        `🔄 Retrying connection (${connectionAttempts}/${MAX_RETRY_ATTEMPTS}) in ${RETRY_DELAY_MS / 1000}s...`
+        `🔄 Retrying connection (${connectionAttempts}/${MAX_RETRY_ATTEMPTS}) in ${RETRY_DELAY_MS / 1000}s...`,
       );
 
       await this.delay(RETRY_DELAY_MS);
@@ -153,18 +153,18 @@ class DatabaseConnection {
    * @returns {Promise<void>}
    */
   async disconnect() {
-    if (!isConnected) {
-      console.log('📦 No active database connection to close');
+    if (!_connectionState) {
+      console.log("📦 No active database connection to close");
       return;
     }
 
     try {
       await mongoose.disconnect();
-      isConnected = false;
+      _connectionState = false;
       this.connection = null;
-      console.log('✅ MongoDB disconnected successfully');
+      console.log("✅ MongoDB disconnected successfully");
     } catch (error) {
-      console.error('❌ Error disconnecting from MongoDB:', error.message);
+      console.error("❌ Error disconnecting from MongoDB:", error.message);
       throw error;
     }
   }
@@ -178,10 +178,10 @@ class DatabaseConnection {
 
     try {
       await this.disconnect();
-      console.log('👋 Database connection closed. Exiting process.');
+      console.log("👋 Database connection closed. Exiting process.");
       process.exit(0);
     } catch (error) {
-      console.error('❌ Error during graceful shutdown:', error.message);
+      console.error("❌ Error during graceful shutdown:", error.message);
       process.exit(1);
     }
   }
@@ -191,7 +191,7 @@ class DatabaseConnection {
    * @returns {boolean}
    */
   isConnected() {
-    return isConnected && mongoose.connection.readyState === 1;
+    return _connectionState && mongoose.connection.readyState === 1;
   }
 
   /**
@@ -200,15 +200,15 @@ class DatabaseConnection {
    */
   getStatus() {
     const states = {
-      0: 'disconnected',
-      1: 'connected',
-      2: 'connecting',
-      3: 'disconnecting',
+      0: "disconnected",
+      1: "connected",
+      2: "connecting",
+      3: "disconnecting",
     };
 
     return {
       isConnected: this.isConnected(),
-      state: states[mongoose.connection.readyState] || 'unknown',
+      state: states[mongoose.connection.readyState] || "unknown",
       readyState: mongoose.connection.readyState,
       host: mongoose.connection.host,
       port: mongoose.connection.port,
@@ -224,7 +224,7 @@ class DatabaseConnection {
     if (mongoose.connection && mongoose.connection.name) {
       return mongoose.connection.name;
     }
-    return process.env.DB_NAME || 'teamera';
+    return process.env.DB_NAME || "teamera";
   }
 
   /**
@@ -240,7 +240,7 @@ class DatabaseConnection {
       await mongoose.connection.db.admin().ping();
       return true;
     } catch (error) {
-      console.error('❌ Database ping failed:', error.message);
+      console.error("❌ Database ping failed:", error.message);
       return false;
     }
   }
@@ -275,17 +275,17 @@ class DatabaseConnection {
    * @returns {Promise<void>}
    */
   async dropDatabase() {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Cannot drop database in production environment');
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Cannot drop database in production environment");
     }
 
     if (!this.isConnected()) {
-      throw new Error('No active database connection');
+      throw new Error("No active database connection");
     }
 
-    console.log('⚠️  Dropping database...');
+    console.log("⚠️  Dropping database...");
     await mongoose.connection.dropDatabase();
-    console.log('✅ Database dropped successfully');
+    console.log("✅ Database dropped successfully");
   }
 }
 
@@ -296,7 +296,7 @@ const databaseConnection = new DatabaseConnection();
 export const connect = (options) => databaseConnection.connect(options);
 export const disconnect = () => databaseConnection.disconnect();
 export const getStatus = () => databaseConnection.getStatus();
-export const isConnected = () => databaseConnection.isConnected();
+export const checkConnection = () => databaseConnection.isConnected();
 export const ping = () => databaseConnection.ping();
 export const getConnection = () => databaseConnection.getConnection();
 export const getMongoose = () => databaseConnection.getMongoose();
