@@ -322,3 +322,8 @@ With this setup, your API will be available at `https://<your-project>.vercel.ap
 - Connection URI: mongodb+srv://Teamera:<db_password>@teamera.aqye1n4.mongodb.net/?appName=Teamera
 - username : Teamera
 - password: Teamera@1245
+- Install the node moduled in backend folder
+- On termineal in backend folder if I run "npm run dev:server" run the server 
+- on Frontend if i run "npm run dev" run frontend
+
+
