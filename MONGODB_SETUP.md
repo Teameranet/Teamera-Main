@@ -316,3 +316,9 @@ Add routing so all `/api/*` requests hit the serverless function and set a reaso
 - CORS: Ensure `FRONTEND_URL` matches your deployed domain.
 
 With this setup, your API will be available at `https://<your-project>.vercel.app/api/*`, and your frontend can interact with it securely using MongoDB Atlas.
+
+---------------------------------------------------------------------
+## Integrate the MongoDB According System Flow & Connect Frontend & Backend with MongoDB
+- Connection URI: mongodb+srv://Teamera:<db_password>@teamera.aqye1n4.mongodb.net/?appName=Teamera
+- username : Teamera
+- password: Teamera@1245
