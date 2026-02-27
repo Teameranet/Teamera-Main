@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import CustomInput from './CustomInput';
 import './AuthModal.css';
 
 function AuthModal({ onClose, onSuccess }) {
@@ -10,9 +9,10 @@ function AuthModal({ onClose, onSuccess }) {
     email: '',
     password: '',
     confirmPassword: '',
-    rememberMe: false,
     agreeToTerms: false
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 
@@ -28,7 +28,6 @@ function AuthModal({ onClose, onSuccess }) {
     e.preventDefault();
     setLoading(true);
 
-    // Simulate API call
     setTimeout(() => {
       const userData = {
         id: Date.now(),
@@ -36,7 +35,6 @@ function AuthModal({ onClose, onSuccess }) {
         email: formData.email,
         role: 'user',
         avatar: '/api/placeholder/40/40',
-        // For existing users, simulate having profile data
         bio: isLogin ? 'Experienced developer passionate about building innovative solutions' : '',
         skills: isLogin ? ['React', 'Node.js', 'JavaScript'] : [],
         experience: isLogin ? '2-3' : '',
@@ -51,7 +49,6 @@ function AuthModal({ onClose, onSuccess }) {
 
   const handleGoogleAuth = () => {
     setLoading(true);
-    // Simulate Google OAuth
     setTimeout(() => {
       const userData = {
         id: Date.now(),
@@ -60,7 +57,6 @@ function AuthModal({ onClose, onSuccess }) {
         role: 'user',
         avatar: '/api/placeholder/40/40',
         provider: 'google',
-        // Simulate existing user with complete profile
         bio: 'Full-stack developer with 5 years of experience in building scalable web applications',
         skills: ['React', 'Node.js', 'Python', 'UI/UX Design'],
         experience: '4-6',
@@ -73,18 +69,16 @@ function AuthModal({ onClose, onSuccess }) {
     }, 1000);
   };
 
-  const handleMicrosoftAuth = () => {
+  const handleAppleAuth = () => {
     setLoading(true);
-    // Simulate Microsoft OAuth
     setTimeout(() => {
       const userData = {
         id: Date.now(),
         name: 'Jane Smith',
-        email: 'jane.smith@outlook.com',
+        email: 'jane.smith@icloud.com',
         role: 'user',
         avatar: '/api/placeholder/40/40',
-        provider: 'microsoft',
-        // Simulate existing user with complete profile
+        provider: 'apple',
         bio: 'Product manager and entrepreneur focused on healthcare technology solutions',
         skills: ['Product Management', 'Marketing', 'Data Science'],
         experience: '7+',
@@ -97,193 +91,229 @@ function AuthModal({ onClose, onSuccess }) {
     }, 1000);
   };
 
-  // Demo user login disabled
-
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="auth-modal-overlay" onClick={onClose}>
       <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{isLogin ? 'Welcome Back' : 'Join Teamera.net'}</h2>
-          <button className="close-btn" onClick={onClose}>
-            <span>×</span>
+        {/* Close Button */}
+        <button className="auth-close-btn" onClick={onClose} aria-label="Close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+
+        {/* Logo Section */}
+        <div className="auth-logo-section">
+          <div className="auth-logo-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M13 2L4.09 12.11C3.68 12.59 3.45 13 3.45 13.5C3.45 14.33 4.12 15 4.95 15H10L9 22L17.91 11.89C18.32 11.41 18.55 11 18.55 10.5C18.55 9.67 17.88 9 17.05 9H14L13 2Z" fill="white" />
+            </svg>
+          </div>
+          <span className="auth-logo-text">Teamera</span>
+        </div>
+
+        {/* Heading */}
+        <div className="auth-heading">
+          <h2>{isLogin ? 'Sign in to your account' : 'Create your account'}</h2>
+          <p className="auth-subtitle">
+            {isLogin
+              ? 'Welcome back! Please enter your details.'
+              : 'Welcome! Fill in the details to get started.'}
+          </p>
+        </div>
+
+        {/* Social Auth Buttons */}
+        <div className="auth-social-row">
+          <button
+            className="auth-social-btn"
+            onClick={handleGoogleAuth}
+            disabled={loading}
+            type="button"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+            </svg>
+            Google
+          </button>
+          <button
+            className="auth-social-btn"
+            onClick={handleAppleAuth}
+            disabled={loading}
+            type="button"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+            </svg>
+            Apple
           </button>
         </div>
 
-        <div className="auth-tabs">
-          <button
-            className={`auth-tab ${isLogin ? 'active' : ''}`}
-            onClick={() => setIsLogin(true)}
-          >
-            Sign In
-          </button>
-          <button
-            className={`auth-tab ${!isLogin ? 'active' : ''}`}
-            onClick={() => setIsLogin(false)}
-          >
-            Sign Up
-          </button>
+        {/* Divider */}
+        <div className="auth-divider">
+          <span>OR</span>
         </div>
 
-        <div className="auth-content">
-          {/* Demo Users Section removed */}
-
-          <form onSubmit={handleSubmit} className="auth-form">
-            {!isLogin && (
-              <div className="form-group">
-                <label htmlFor="fullName">Full Name</label>
-                <CustomInput
-                  id="fullName"
-                  name="fullName"
-                  placeholder="Enter your full name"
-                  value={formData.fullName}
-                  onChange={handleInputChange}
-                  required={!isLogin}
-                  disabled={loading}
-                  icon={
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
-                  }
-                />
-              </div>
-            )}
-
-            <div className="form-group">
-              <label htmlFor="email">Email Address</label>
-              <CustomInput
-                type="email"
-                id="email"
-                name="email"
-                placeholder="Enter your email"
-                value={formData.email}
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="auth-form">
+          {/* Full Name (Sign Up only) */}
+          {!isLogin && (
+            <div className="auth-field">
+              <label htmlFor="auth-fullname">Full Name</label>
+              <input
+                type="text"
+                id="auth-fullname"
+                name="fullName"
+                placeholder="Enter your full name"
+                value={formData.fullName}
                 onChange={handleInputChange}
                 required
                 disabled={loading}
-                icon={
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                    <polyline points="22,6 12,13 2,6"></polyline>
-                  </svg>
-                }
+                autoComplete="name"
               />
             </div>
+          )}
 
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <CustomInput
-                type="password"
-                id="password"
+          {/* Email */}
+          <div className="auth-field">
+            <label htmlFor="auth-email">Email address</label>
+            <input
+              type="email"
+              id="auth-email"
+              name="email"
+              placeholder="name@company.com"
+              value={formData.email}
+              onChange={handleInputChange}
+              required
+              disabled={loading}
+              autoComplete="email"
+            />
+          </div>
+
+          {/* Password */}
+          <div className="auth-field">
+            <label htmlFor="auth-password">Password</label>
+            <div className="auth-password-wrapper">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="auth-password"
                 name="password"
-                placeholder="Enter your password"
+                placeholder="••••••••"
                 value={formData.password}
                 onChange={handleInputChange}
                 required
                 disabled={loading}
-                icon={
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                  </svg>
-                }
+                autoComplete={isLogin ? 'current-password' : 'new-password'}
               />
+              <button
+                type="button"
+                className="auth-toggle-password"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                tabIndex={-1}
+              >
+                {showPassword ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
             </div>
+          </div>
 
-            {!isLogin && (
-              <div className="form-group">
-                <label htmlFor="confirmPassword">Confirm Password</label>
-                <CustomInput
-                  type="password"
-                  id="confirmPassword"
+          {/* Confirm Password (Sign Up only) */}
+          {!isLogin && (
+            <div className="auth-field">
+              <label htmlFor="auth-confirm-password">Confirm password</label>
+              <div className="auth-password-wrapper">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  id="auth-confirm-password"
                   name="confirmPassword"
-                  placeholder="Confirm your password"
+                  placeholder="••••••••"
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
-                  required={!isLogin}
+                  required
                   disabled={loading}
-                  icon={
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                    </svg>
-                  }
+                  autoComplete="new-password"
                 />
+                <button
+                  type="button"
+                  className="auth-toggle-password"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
               </div>
-            )}
-
-            {isLogin && (
-              <div className="form-options">
-                <div className="checkbox-group">
-                  <input
-                    type="checkbox"
-                    id="rememberMe"
-                    name="rememberMe"
-                    checked={formData.rememberMe}
-                    onChange={handleInputChange}
-                  />
-                  <label htmlFor="rememberMe">Remember me</label>
-                </div>
-                <a href="#" className="forgot-password">Forgot password?</a>
-              </div>
-            )}
-
-            <div className="divider">
-              <span>or</span>
             </div>
+          )}
 
-            <div className="social-auth">
-              <button
-                className="social-btn google-btn"
-                onClick={handleGoogleAuth}
-                disabled={loading}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                </svg>
-                Continue with Google
-              </button>
-              <button
-                className="social-btn microsoft-btn"
-                onClick={handleMicrosoftAuth}
-                disabled={loading}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                  <rect x="2" y="2" width="9" height="9" fill="#f25022" />
-                  <rect x="13" y="2" width="9" height="9" fill="#7fba00" />
-                  <rect x="2" y="13" width="9" height="9" fill="#00a4ef" />
-                  <rect x="13" y="13" width="9" height="9" fill="#ffb900" />
-                </svg>
-                Continue with Microsoft
-              </button>
+          {/* Forgot Password (Sign In only) */}
+          {isLogin && (
+            <div className="auth-forgot-row">
+              <a href="#" className="auth-forgot-link">Forgot password?</a>
             </div>
+          )}
 
-            {!isLogin && (
-              <div className="checkbox-group terms-checkbox">
+          {/* Terms Checkbox (Sign Up only) */}
+          {!isLogin && (
+            <div className="auth-terms-row">
+              <label className="auth-checkbox-label">
                 <input
                   type="checkbox"
-                  id="agreeToTerms"
                   name="agreeToTerms"
                   checked={formData.agreeToTerms}
                   onChange={handleInputChange}
-                  required
                 />
-                <label htmlFor="agreeToTerms">
-                  By creating an account, you agree to our <a href="#" className="terms-link">Terms of Service</a> and <a href="#" className="privacy-link">Privacy Policy</a>
-                </label>
-              </div>
-            )}
+                <span className="auth-checkmark"></span>
+                <span className="auth-terms-text">
+                  I agree to the <a href="#" className="auth-link">Terms of Service</a> and <a href="#" className="auth-link">Privacy Policy</a>
+                </span>
+              </label>
+            </div>
+          )}
 
-            <button
-              type="submit"
-              className="submit-btn"
-              disabled={loading || (!isLogin && !formData.agreeToTerms)}
-            >
-              {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
-            </button>
-          </form>
+          {/* Submit Button */}
+          <button
+            type="submit"
+            className="auth-submit-btn"
+            disabled={loading || (!isLogin && !formData.agreeToTerms)}
+          >
+            {loading ? (
+              <span className="auth-spinner"></span>
+            ) : (
+              isLogin ? 'Sign in' : 'Continue'
+            )}
+          </button>
+        </form>
+
+        {/* Toggle Sign In / Sign Up */}
+        <div className="auth-toggle-row">
+          {isLogin ? (
+            <p>Don't have an account? <button type="button" className="auth-toggle-btn" onClick={() => setIsLogin(false)}>Sign up</button></p>
+          ) : (
+            <p>Already have an account? <button type="button" className="auth-toggle-btn" onClick={() => setIsLogin(true)}>Sign in</button></p>
+          )}
         </div>
       </div>
     </div>

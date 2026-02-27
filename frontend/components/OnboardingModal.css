@@ -1,262 +1,493 @@
-.onboarding-modal {
-  background: white;
-  border-radius: 16px;
+/* ============================================
+   OnboardingModal – Minimal, AuthModal-consistent
+   ============================================ */
+
+/* ─── Overlay ─── */
+.ob-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 1rem;
+  animation: obOverlayIn 0.25s ease;
+}
+
+@keyframes obOverlayIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* ─── Modal Card ─── */
+.ob-modal {
+  position: relative;
+  background: #ffffff;
+  border-radius: 20px;
+  max-width: 480px;
   width: 100%;
-  max-width: 600px;
-  max-height: 90vh;
+  max-height: 92vh;
   overflow-y: auto;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  padding: 36px 32px 28px;
+  animation: obModalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.progress-bar {
-  height: 4px;
-  background: #e5e7eb;
-  margin: 0 1.5rem;
+@keyframes obModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
-  transition: width 0.3s ease;
+.ob-modal::-webkit-scrollbar {
+  width: 4px;
 }
 
-.onboarding-content {
-  padding: 1.5rem;
+.ob-modal::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.step-header {
-  text-align: center;
-  margin-bottom: 2rem;
+.ob-modal::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
 }
 
-.step-header h3 {
-  margin: 0 0 0.5rem 0;
-  color: #1f2937;
+/* ─── Logo (matches AuthModal) ─── */
+.ob-logo-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.ob-logo-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.ob-logo-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.ob-logo-text {
   font-size: 1.5rem;
   font-weight: 700;
+  color: #1f2937;
+  letter-spacing: -0.02em;
 }
 
-.step-counter {
-  color: #6b7280;
+/* ─── Heading ─── */
+.ob-heading {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.ob-heading h2 {
+  margin: 0 0 4px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.01em;
+}
+
+.ob-subtitle {
+  margin: 0;
   font-size: 0.9rem;
+  color: #6366f1;
+  font-weight: 400;
 }
 
-.step-content {
-  margin-bottom: 2rem;
+/* ─── Progress Dots ─── */
+.ob-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 28px;
 }
 
-.role-selection {
-  display: grid;
-  gap: 1rem;
-}
-
-.role-card {
-  padding: 1.5rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  cursor: pointer;
+.ob-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e5e7eb;
   transition: all 0.3s ease;
 }
 
-.role-card:hover {
-  border-color: #2563eb;
-  background: rgba(37, 99, 235, 0.05);
+.ob-dot.active {
+  width: 28px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
 }
 
-.role-card.selected {
-  border-color: #2563eb;
-  background: rgba(37, 99, 235, 0.1);
+.ob-dot.done {
+  background: #6366f1;
 }
 
-.role-card h3 {
-  margin: 0 0 0.5rem 0;
-  color: #1f2937;
-  font-size: 1.1rem;
+/* ─── Content ─── */
+.ob-content {
+  margin-bottom: 24px;
+  min-height: 180px;
+}
+
+/* ─── Role Cards ─── */
+.ob-role-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ob-role-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.ob-role-card:hover {
+  border-color: #c7d2fe;
+  background: #f5f3ff;
+}
+
+.ob-role-card.selected {
+  border-color: #6366f1;
+  background: #eef2ff;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.ob-role-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ob-role-label {
+  display: block;
   font-weight: 600;
+  font-size: 0.95rem;
+  color: #1f2937;
+  margin-bottom: 2px;
 }
 
-.role-card p {
-  margin: 0;
+.ob-role-desc {
+  display: block;
+  font-size: 0.82rem;
   color: #6b7280;
-  font-size: 0.9rem;
   line-height: 1.4;
 }
 
-.skills-selection {
-  text-align: center;
+/* ─── Skill Chips ─── */
+.ob-skills-wrap {
+  /* no extra padding needed */
 }
 
-.skills-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+.ob-skills-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.skill-btn {
-  padding: 0.75rem 1rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  background: white;
+.ob-skill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 20px;
+  background: #ffffff;
   color: #374151;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
-.skill-btn:hover {
-  border-color: #2563eb;
-  background: rgba(37, 99, 235, 0.05);
+.ob-skill-chip:hover {
+  border-color: #c7d2fe;
+  background: #f5f3ff;
 }
 
-.skill-btn.selected {
-  border-color: #2563eb;
-  background: #2563eb;
-  color: white;
+.ob-skill-chip.selected {
+  border-color: #6366f1;
+  background: #6366f1;
+  color: #ffffff;
 }
 
-.skills-note {
-  color: #6b7280;
-  font-size: 0.9rem;
-  margin: 0;
+.ob-skill-chip.selected svg {
+  stroke: #ffffff;
 }
 
-.experience-selection,
-.profile-completion {
-  max-width: 400px;
-  margin: 0 auto;
+/* ─── Form Fields (Steps 2 & 3) ─── */
+.ob-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
-.form-group {
-  margin-bottom: 1.5rem;
+.ob-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.form-group label {
-  display: block;
-  color: #374151;
-  font-weight: 500;
-  margin-bottom: 0.5rem;
+.ob-field label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1f2937;
 }
 
-.form-group input,
-.form-group select,
-.form-group textarea {
+.ob-field input,
+.ob-field select,
+.ob-field textarea {
   width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
-}
-
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
+  padding: 0 16px;
+  height: 48px;
+  font-size: 0.95rem;
+  color: #1f2937;
+  background: #f9fafb;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  transition: all 0.2s ease;
   outline: none;
-  border-color: #2563eb;
-}
-
-.form-group textarea {
-  resize: vertical;
   font-family: inherit;
 }
 
-.profile-summary {
+.ob-field textarea {
+  height: auto;
+  padding: 12px 16px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.ob-field select {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 40px;
+}
+
+.ob-field input::placeholder,
+.ob-field textarea::placeholder {
+  color: #9ca3af;
+}
+
+.ob-field input:focus,
+.ob-field select:focus,
+.ob-field textarea:focus {
+  border-color: #6366f1;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* ─── Profile Summary ─── */
+.ob-summary {
   background: #f9fafb;
-  padding: 1.5rem;
+  border: 1.5px solid #f3f4f6;
+  padding: 18px 20px;
   border-radius: 12px;
-  margin-top: 1rem;
 }
 
-.profile-summary h4 {
-  margin: 0 0 1rem 0;
+.ob-summary h4 {
+  margin: 0 0 14px;
+  font-size: 0.95rem;
+  font-weight: 600;
   color: #1f2937;
-  font-size: 1.1rem;
 }
 
-.summary-item {
-  margin-bottom: 0.75rem;
-  color: #374151;
-  font-size: 0.9rem;
-  line-height: 1.4;
+.ob-summary-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  line-height: 1.5;
 }
 
-.summary-item:last-child {
+.ob-summary-row:last-child {
   margin-bottom: 0;
 }
 
-.step-actions {
+.ob-summary-label {
+  font-weight: 600;
+  color: #6b7280;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.ob-summary-value {
+  color: #374151;
+  word-break: break-word;
+}
+
+/* ─── Actions ─── */
+.ob-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
-.prev-btn,
-.next-btn {
+.ob-btn-secondary {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.prev-btn {
-  background: transparent;
+  gap: 6px;
+  padding: 0 20px;
+  height: 46px;
+  background: #ffffff;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
   color: #6b7280;
-  border: 2px solid #e5e7eb;
+  font-weight: 500;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.prev-btn:hover {
+.ob-btn-secondary:hover {
   border-color: #d1d5db;
   background: #f9fafb;
 }
 
-.next-btn {
-  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
-  color: white;
+.ob-btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 28px;
+  height: 46px;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
   border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
   margin-left: auto;
 }
 
-.next-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+.ob-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5b5ee6 0%, #4338ca 100%);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
+  transform: translateY(-1px);
 }
 
-.next-btn:disabled {
-  opacity: 0.6;
+.ob-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.ob-btn-primary:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
-@media (max-width: 768px) {
-  .onboarding-modal {
-    margin: 0.5rem;
+/* ─── Skip ─── */
+.ob-skip-row {
+  text-align: center;
+}
+
+.ob-skip-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.2s ease;
+}
+
+.ob-skip-btn:hover {
+  color: #6b7280;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 520px) {
+  .ob-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .ob-modal {
     max-width: none;
+    border-radius: 20px 20px 0 0;
+    max-height: 95vh;
+    padding: 28px 20px 20px;
+    animation: obModalSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  
-  .skills-grid {
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    gap: 0.5rem;
+
+  @keyframes obModalSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  
-  .skill-btn {
-    padding: 0.5rem 0.75rem;
+
+  .ob-heading h2 {
+    font-size: 1.2rem;
+  }
+
+  .ob-skill-chip {
+    padding: 6px 12px;
     font-size: 0.8rem;
   }
-  
-  .step-actions {
-    flex-direction: column;
+
+  .ob-role-card {
+    padding: 12px 14px;
   }
-  
-  .prev-btn,
-  .next-btn {
+
+  .ob-actions {
+    flex-direction: column-reverse;
+  }
+
+  .ob-btn-secondary,
+  .ob-btn-primary {
     width: 100%;
     justify-content: center;
+    margin-left: 0;
   }
 }
