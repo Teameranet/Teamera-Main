@@ -207,10 +207,6 @@
 }
 
 /* ─── Skill Chips ─── */
-.ob-skills-wrap {
-  /* no extra padding needed */
-}
-
 .ob-skills-grid {
   display: flex;
   flex-wrap: wrap;
