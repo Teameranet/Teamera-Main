@@ -10,7 +10,6 @@ class User {
     this.role = data.role || 'user';
     this.status = data.status || 'active';
     this.skills = data.skills || [];
-    this.socialLinks = data.socialLinks || {};
     this.createdAt = data.createdAt || new Date().toISOString();
     this.updatedAt = data.updatedAt || new Date().toISOString();
   }
@@ -90,7 +89,6 @@ class User {
       role: data.role || 'user',
       status: 'active',
       skills: data.skills || [],
-      socialLinks: data.socialLinks || {}
     });
   }
 
@@ -121,9 +119,6 @@ class User {
     if (data.skills !== undefined) {
       this.skills = data.skills;
     }
-    if (data.socialLinks !== undefined) {
-      this.socialLinks = { ...this.socialLinks, ...data.socialLinks };
-    }
 
     this.updatedAt = new Date().toISOString();
     return this;
@@ -143,7 +138,6 @@ class User {
       role: this.role,
       status: this.status,
       skills: this.skills,
-      socialLinks: this.socialLinks,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt
     };
@@ -160,7 +154,6 @@ class User {
       avatar: this.avatar,
       bio: this.bio,
       skills: this.skills,
-      socialLinks: this.socialLinks
     };
   }
 }
