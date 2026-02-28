@@ -43,7 +43,8 @@ export const AuthProvider = ({ children }) => {
 
   const signup = async (userData) => {
     try {
-      const response = await fetch('/api/users', {
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiBaseUrl}/api/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -53,7 +54,7 @@ export const AuthProvider = ({ children }) => {
 
       if (response.ok) {
         const result = await response.json();
-        const newUser = result.data;
+        const newUser = { ...result.data, id: result.data._id || result.data.id };
         
         // Store user locally and in localStorage
         setUser(newUser);
@@ -73,14 +74,36 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (profileData) => {
     try {
+      // Map role to title if role is provided but title is not
+      const getRoleDisplayTitle = (role) => {
+        const roleMap = {
+          'founder': 'The Founder',
+          'professional': 'The Professional',
+          'investor': 'The Investor',
+          'student': 'The Student'
+        };
+        return roleMap[role] || 'Developer';
+      };
+
+      // Set title based on role if not already set
+      if (profileData.role && !profileData.title) {
+        profileData.title = getRoleDisplayTitle(profileData.role);
+      }
+
       // Update locally first for immediate UI feedback
       const updatedUser = { ...user, ...profileData };
       setUser(updatedUser);
       localStorage.setItem('teamera_user', JSON.stringify(updatedUser));
 
       // Sync with backend if user has an ID
-      if (user?.id) {
-        const response = await fetch(`/api/users/${user.id}/profile`, {
+      if (user?.id || user?._id) {
+        const userId = user.id || user._id;
+        const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        
+        console.log('Updating profile for user:', userId);
+        console.log('Profile data being sent:', profileData);
+        
+        const response = await fetch(`${apiBaseUrl}/api/users/${userId}/profile`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -91,28 +114,34 @@ export const AuthProvider = ({ children }) => {
         if (response.ok) {
           const result = await response.json();
           const backendUser = result.data;
-          setUser(backendUser);
-          localStorage.setItem('teamera_user', JSON.stringify(backendUser));
-          return { success: true, user: backendUser };
+          // Merge backend data with local user data
+          const mergedUser = { ...updatedUser, ...backendUser, id: backendUser._id || backendUser.id };
+          setUser(mergedUser);
+          localStorage.setItem('teamera_user', JSON.stringify(mergedUser));
+          console.log('Profile synced with backend successfully');
+          return { success: true, user: mergedUser };
         } else {
-          console.error('Failed to sync profile with backend');
-          return { success: true, user: updatedUser }; // Still return success for local update
+          const errorData = await response.json();
+          console.error('Failed to sync profile with backend:', errorData);
+          return { success: false, error: errorData.message || 'Failed to sync with backend' };
         }
       }
 
       return { success: true, user: updatedUser };
     } catch (error) {
       console.error('Profile update error:', error);
-      return { success: false, error: 'Failed to update profile' };
+      return { success: false, error: error.message || 'Failed to update profile' };
     }
   };
 
   // Store new user profile data on signup/signin
   const storeUserProfile = async (userData) => {
     try {
-      if (userData.id) {
+      const userId = userData.id || userData._id;
+      if (userId) {
         // If user has ID, sync with backend
-        const response = await fetch(`/api/users/${userData.id}/profile`, {
+        const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${apiBaseUrl}/api/users/${userId}/profile`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -122,7 +151,7 @@ export const AuthProvider = ({ children }) => {
 
         if (response.ok) {
           const result = await response.json();
-          return result.data;
+          return { ...result.data, id: result.data._id || result.data.id };
         }
       }
       return userData;

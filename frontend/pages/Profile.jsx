@@ -184,23 +184,6 @@ function Profile() {
     }
   ];
 
-  // Sample achievements data
-  const achievements = [
-    {
-      id: 1,
-      title: "Winner - FinTech Hackathon 2024",
-      date: "2024-03-15",
-      description: "First place in national fintech competition with innovative payment solution",
-      icon: "🏆"
-    },
-    {
-      id: 2,
-      title: "Top Contributor - Open Source",
-      date: "2023-12-01",
-      description: "Recognized as top contributor to React ecosystem projects on GitHub",
-      icon: "⭐"
-    }
-  ];
 
   // Get metrics from user data with fallbacks to default values
   // function: stats, if you want to fetch stats from API, do it here
@@ -225,16 +208,18 @@ function Profile() {
   // Initialize formData with user data from signup
   useEffect(() => {
     const fetchUserProfile = async () => {
-      if (user && user.id) {
+      if (user && (user.id || user._id)) {
         try {
+          const userId = user.id || user._id;
+          const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
           // Fetch latest profile data from backend
-          const response = await fetch(`/api/users/${user.id}/profile`);
+          const response = await fetch(`${apiBaseUrl}/api/users/${userId}/profile`);
           if (response.ok) {
             const result = await response.json();
             const backendUser = result.data;
             
             // Update local user state with backend data
-            const updatedUser = { ...user, ...backendUser };
+            const updatedUser = { ...user, ...backendUser, id: backendUser._id || backendUser.id };
             setUser(updatedUser);
             localStorage.setItem('teamera_user', JSON.stringify(updatedUser));
             
@@ -258,6 +243,34 @@ function Profile() {
     const initializeFormData = (userData) => {
       const skillLevel = mapExperienceToSkillLevel(userData.experience);
       
+      // Map years from experience string
+      const mapExperienceToYears = (experience) => {
+        switch(experience) {
+          case '0-1': return 1;
+          case '2-3': return 2;
+          case '4-6': return 5;
+          case '7+': return 8;
+          default: return 1;
+        }
+      };
+      
+      const skillYears = mapExperienceToYears(userData.experience);
+      
+      // Handle skills - convert strings to objects if needed
+      let formattedSkills = [];
+      if (Array.isArray(userData.skills)) {
+        formattedSkills = userData.skills.map(skill => {
+          if (typeof skill === 'string') {
+            // Convert string to object format
+            return { name: skill, level: skillLevel, years: skillYears };
+          } else if (typeof skill === 'object' && skill.name) {
+            // Already in object format
+            return skill;
+          }
+          return null;
+        }).filter(Boolean);
+      }
+      
       setFormData({
         name: userData.name || '',
         email: userData.email || '',
@@ -267,20 +280,16 @@ function Profile() {
         githubUrl: userData.githubUrl || '',
         linkedinUrl: userData.linkedinUrl || '',
         portfolioUrl: userData.portfolioUrl || '',
-        skills: Array.isArray(userData.skills)
-          ? userData.skills.map(skill => typeof skill === 'string'
-            ? { name: skill, level: skillLevel, years: 1 }
-            : skill)
+        skills: formattedSkills,
+        experience: Array.isArray(userData.experiences) && userData.experiences.length > 0
+          ? userData.experiences
           : [],
-        experience: Array.isArray(userData.experiences) ? userData.experiences : 
-                    Array.isArray(userData.experience) && typeof userData.experience[0] === 'object' 
-                    ? userData.experience : [],
         education: Array.isArray(userData.education) ? userData.education : []
       });
     };
 
     fetchUserProfile();
-  }, [user?.id]); // Only re-run when user ID changes
+  }, [user?.id, user?._id]); // Re-run when user ID changes
 
   // Initialize formData state
   // function: useState for formData, no API needed
@@ -379,6 +388,11 @@ function Profile() {
         experiences: formData.experience, // Backend expects 'experiences'
       };
       
+      // Remove the 'experience' field to avoid confusion
+      delete profileData.experience;
+      
+      console.log('Saving profile data:', profileData);
+      
       // Update profile via context (which calls backend)
       const result = await updateProfile(profileData);
       
@@ -386,13 +400,14 @@ function Profile() {
         // Update local user state
         setUser(result.user);
         setIsEditing(false);
+        console.log('Profile updated successfully');
       } else {
         console.error('Failed to update profile:', result.error);
-        alert('Failed to update profile. Please try again.');
+        alert(`Failed to update profile: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error saving profile:', error);
-      alert('An error occurred while saving your profile.');
+      alert(`An error occurred while saving your profile: ${error.message}`);
     }
   };
 
@@ -483,7 +498,7 @@ function Profile() {
                 </div>
                 <div className="profile-meta-item">
                   <Calendar size={16} />
-                  <span>Joined 1/15/2024</span>
+                  <span>Joined {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : 'Recently'}</span>
                 </div>
               </div>
 

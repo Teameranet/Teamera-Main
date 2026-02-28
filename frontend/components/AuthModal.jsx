@@ -14,6 +14,7 @@ function AuthModal({ onClose, onSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const { login } = useAuth();
 
   const handleInputChange = (e) => {
@@ -22,29 +23,114 @@ function AuthModal({ onClose, onSuccess }) {
       ...formData,
       [e.target.name]: value
     });
+    // Clear error when user starts typing
+    if (error) setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+
+    // Validate password match for sign up
+    if (!isLogin) {
+      if (formData.password !== formData.confirmPassword) {
+        setError('Password and Confirm Password do not match');
+        return;
+      }
+    }
+
     setLoading(true);
 
-    setTimeout(() => {
-      const userData = {
-        id: Date.now(),
-        name: formData.fullName || formData.email.split('@')[0],
-        email: formData.email,
-        role: 'user',
-        avatar: '/api/placeholder/40/40',
-        bio: isLogin ? 'Experienced developer passionate about building innovative solutions' : '',
-        skills: isLogin ? ['React', 'Node.js', 'JavaScript'] : [],
-        experience: isLogin ? '2-3' : '',
-        location: isLogin ? 'Mumbai, India' : ''
-      };
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const apiUrl = `${apiBaseUrl}/api`;
+      
+      if (isLogin) {
+        // Login - Make API call to backend
+        const response = await fetch(`${apiUrl}/users/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password
+          }),
+        });
 
-      login(userData);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Invalid email or password');
+        }
+
+        // Successfully logged in
+        const backendUser = data.data.user;
+        const userData = {
+          id: backendUser._id || backendUser.id,
+          name: backendUser.name,
+          email: backendUser.email,
+          role: backendUser.role || 'user',
+          avatar: backendUser.avatar || '/api/placeholder/40/40',
+          bio: backendUser.bio || '',
+          skills: backendUser.skills || [],
+          experience: backendUser.experience || '',
+          location: backendUser.location || '',
+          title: backendUser.title || '',
+          githubUrl: backendUser.githubUrl || '',
+          linkedinUrl: backendUser.linkedinUrl || '',
+          portfolioUrl: backendUser.portfolioUrl || '',
+          experiences: backendUser.experiences || [],
+          education: backendUser.education || [],
+          createdAt: backendUser.createdAt,
+          token: data.data.token
+        };
+
+        login(userData);
+        onSuccess(userData);
+      } else {
+        // Sign up - Make API call to backend
+        const response = await fetch(`${apiUrl}/users`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: formData.fullName,
+            email: formData.email,
+            password: formData.password,
+            confirmPassword: formData.confirmPassword
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to create account');
+        }
+
+        // Successfully created user
+        const userData = {
+          id: data.data._id,
+          name: data.data.name,
+          email: data.data.email,
+          role: data.data.role || 'user',
+          avatar: data.data.avatar || '/api/placeholder/40/40',
+          bio: data.data.bio || '',
+          skills: data.data.skills || [],
+          experience: data.data.experience || '',
+          location: data.data.location || ''
+        };
+
+        login(userData);
+        onSuccess(userData);
+      }
+    } catch (err) {
+      console.error('Auth error:', err);
+      setError(err.message || 'An error occurred. Please try again.');
+    } finally {
       setLoading(false);
-      onSuccess(userData);
-    }, 1000);
+    }
   };
 
   const handleGoogleAuth = () => {
@@ -158,6 +244,18 @@ function AuthModal({ onClose, onSuccess }) {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="auth-form">
+          {/* Error Message */}
+          {error && (
+            <div className="auth-error-message">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <span>{error}</span>
+            </div>
+          )}
+
           {/* Full Name (Sign Up only) */}
           {!isLogin && (
             <div className="auth-field">
@@ -244,6 +342,13 @@ function AuthModal({ onClose, onSuccess }) {
                   required
                   disabled={loading}
                   autoComplete="new-password"
+                  className={
+                    formData.confirmPassword && formData.password !== formData.confirmPassword
+                      ? 'password-mismatch'
+                      : formData.confirmPassword && formData.password === formData.confirmPassword
+                      ? 'password-match'
+                      : ''
+                  }
                 />
                 <button
                   type="button"
@@ -265,6 +370,12 @@ function AuthModal({ onClose, onSuccess }) {
                   )}
                 </button>
               </div>
+              {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                <span className="auth-field-hint error">Passwords do not match</span>
+              )}
+              {formData.confirmPassword && formData.password === formData.confirmPassword && (
+                <span className="auth-field-hint success">Passwords match</span>
+              )}
             </div>
           )}
 

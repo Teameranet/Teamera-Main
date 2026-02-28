@@ -516,7 +516,8 @@ function Community() {
         const profileData = {
           ...userProfile,
           title: userProfile.title || getRoleDisplayTitle(userProfile.role),
-          experiences: userProfile.experience || [],
+          // Use 'experiences' array from backend (not 'experience' string)
+          experiences: Array.isArray(userProfile.experiences) ? userProfile.experiences : [],
           // Keep skills as array for ProfileModal
           skills: Array.isArray(userProfile.skills) ? userProfile.skills : [],
           // Ensure social media links are available
@@ -535,7 +536,7 @@ function Community() {
         const profileData = {
           ...user,
           title: user.title || getRoleDisplayTitle(user.role),
-          experiences: user.experience || [],
+          experiences: Array.isArray(user.experiences) ? user.experiences : [],
           skills: Array.isArray(user.skills) ? user.skills : []
         };
         setSelectedMember(profileData);

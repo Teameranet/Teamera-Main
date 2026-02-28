@@ -1,19 +1,78 @@
 import User from "../../models/User.js";
+import jwt from "jsonwebtoken";
 import {
   successResponse,
   errorResponse,
   asyncHandler,
 } from "../../utils/helpers.js";
 
-// In-memory storage (demo users removed)
-let users = [];
-
-// Track user's projects and participations
-const userProjects = {};
+// Function to get display title based on user role
+const getRoleDisplayTitle = (role) => {
+  const roleMap = {
+    'founder': 'The Founder',
+    'professional': 'The Professional',
+    'investor': 'The Investor',
+    'student': 'The Student',
+    'admin': 'Administrator',
+    'moderator': 'Moderator',
+    'user': 'Developer'
+  };
+  return roleMap[role] || 'Developer';
+};
 
 const userController = {
+  // Login user
+  loginUser: asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json(errorResponse("Email and password are required", "MISSING_CREDENTIALS"));
+    }
+
+    // Find user by email and include password field
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+
+    if (!user) {
+      return res
+        .status(401)
+        .json(errorResponse("Invalid email or password", "INVALID_CREDENTIALS"));
+    }
+
+    // Check password
+    const isPasswordValid = await user.comparePassword(password);
+
+    if (!isPasswordValid) {
+      return res
+        .status(401)
+        .json(errorResponse("Invalid email or password", "INVALID_CREDENTIALS"));
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'teamera-super-secret-jwt-key-2024',
+      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    );
+
+    // Remove password from response
+    const userResponse = user.toJSON();
+
+    const response = successResponse(
+      {
+        user: userResponse,
+        token
+      },
+      "Login successful"
+    );
+    res.json(response);
+  }),
+
   // Get all users
   getAllUsers: asyncHandler(async (req, res) => {
+    const users = await User.find().select('-password');
     const response = successResponse(users, "Users retrieved successfully");
     res.json(response);
   }),
@@ -21,7 +80,7 @@ const userController = {
   // Get user by ID
   getUserById: asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const user = users.find((u) => u.id === id);
+    const user = await User.findById(id).select('-password');
 
     if (!user) {
       return res
@@ -36,7 +95,7 @@ const userController = {
   // Get user projects
   getUserProjects: asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const user = users.find((u) => u.id === id);
+    const user = await User.findById(id);
 
     if (!user) {
       return res
@@ -44,10 +103,12 @@ const userController = {
         .json(errorResponse("User not found", "USER_NOT_FOUND"));
     }
 
-    const projects = userProjects[id] || {
+    // TODO: Implement project retrieval from Project model
+    const projects = {
       ownedProjects: [],
       participatingProjects: [],
     };
+    
     const response = successResponse(
       projects,
       "User projects retrieved successfully",
@@ -55,35 +116,30 @@ const userController = {
     res.json(response);
   }),
 
-  // Create new user
+  // Create new user (Registration)
   createUser: asyncHandler(async (req, res) => {
-    const { name, email } = req.body;
-
-    // Validate user data
-    const validation = User.validate({ name, email });
-    if (!validation.isValid) {
-      return res
-        .status(400)
-        .json(errorResponse(validation.errors.join(", "), "VALIDATION_ERROR"));
-    }
+    const { name, email, password, role, ...otherData } = req.body;
 
     // Check if email already exists
-    const existingUser = users.find((u) => u.email === email);
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       return res
         .status(409)
         .json(errorResponse("Email already exists", "EMAIL_EXISTS"));
     }
 
-    // Create new user
-    const newUser = User.create({ name, email });
-    users.push(newUser);
+    // Set default title based on role if not provided
+    const title = otherData.title || getRoleDisplayTitle(role || 'user');
 
-    // Initialize empty projects for the new user
-    userProjects[newUser.id] = {
-      ownedProjects: [],
-      participatingProjects: [],
-    };
+    // Create new user
+    const newUser = await User.create({
+      name,
+      email,
+      password,
+      role: role || 'user',
+      title,
+      ...otherData
+    });
 
     const response = successResponse(newUser, "User created successfully");
     res.status(201).json(response);
@@ -92,45 +148,43 @@ const userController = {
   // Update user
   updateUser: asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { name, email } = req.body;
+    const { email, ...updateData } = req.body;
 
-    const userIndex = users.findIndex((u) => u.id === id);
-    if (userIndex === -1) {
+    // Check if email is taken by another user
+    if (email) {
+      const emailExists = await User.findOne({ 
+        email: email.toLowerCase(), 
+        _id: { $ne: id } 
+      });
+      if (emailExists) {
+        return res
+          .status(409)
+          .json(errorResponse("Email already exists", "EMAIL_EXISTS"));
+      }
+      updateData.email = email;
+    }
+
+    // Update user
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!updatedUser) {
       return res
         .status(404)
         .json(errorResponse("User not found", "USER_NOT_FOUND"));
     }
 
-    // Validate updated data
-    const validation = User.validate({ name, email });
-    if (!validation.isValid) {
-      return res
-        .status(400)
-        .json(errorResponse(validation.errors.join(", "), "VALIDATION_ERROR"));
-    }
-
-    // Check if email is taken by another user
-    const emailExists = users.find((u) => u.email === email && u.id !== id);
-    if (emailExists) {
-      return res
-        .status(409)
-        .json(errorResponse("Email already exists", "EMAIL_EXISTS"));
-    }
-
-    // Update user
-    users[userIndex].update({ name, email });
-
-    const response = successResponse(
-      users[userIndex],
-      "User updated successfully",
-    );
+    const response = successResponse(updatedUser, "User updated successfully");
     res.json(response);
   }),
 
   // Get user profile
   getUserProfile: asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const user = users.find((u) => u.id === id);
+    const user = await User.findById(id).select('-password');
 
     if (!user) {
       return res
@@ -150,39 +204,61 @@ const userController = {
     const { id } = req.params;
     const profileData = req.body;
 
-    const userIndex = users.findIndex((u) => u.id === id);
-    if (userIndex === -1) {
-      return res
-        .status(404)
-        .json(errorResponse("User not found", "USER_NOT_FOUND"));
+    // Remove password and email from profile updates for security
+    delete profileData.password;
+    delete profileData.email;
+    delete profileData.id;
+    delete profileData._id;
+    delete profileData.token;
+
+    // If role is being updated and title is not provided, set default title
+    if (profileData.role && !profileData.title) {
+      profileData.title = getRoleDisplayTitle(profileData.role);
     }
 
-    // Update user profile with new data
-    users[userIndex].update(profileData);
+    // Handle experiences field mapping (frontend sends 'experience' array, backend expects 'experiences')
+    if (profileData.experience && Array.isArray(profileData.experience)) {
+      profileData.experiences = profileData.experience;
+      delete profileData.experience;
+    }
 
-    const response = successResponse(
-      users[userIndex],
-      "Profile updated successfully",
-    );
-    res.json(response);
+    try {
+      const updatedUser = await User.findByIdAndUpdate(
+        id,
+        { $set: profileData },
+        { new: true, runValidators: false }
+      ).select('-password');
+
+      if (!updatedUser) {
+        return res
+          .status(404)
+          .json(errorResponse("User not found", "USER_NOT_FOUND"));
+      }
+
+      const response = successResponse(
+        updatedUser,
+        "Profile updated successfully",
+      );
+      res.json(response);
+    } catch (error) {
+      console.error('Profile update error:', error);
+      return res
+        .status(500)
+        .json(errorResponse(error.message || "Failed to update profile", "UPDATE_ERROR"));
+    }
   }),
 
   // Delete user
   deleteUser: asyncHandler(async (req, res) => {
     const { id } = req.params;
 
-    const userIndex = users.findIndex((u) => u.id === id);
-    if (userIndex === -1) {
+    const deletedUser = await User.findByIdAndDelete(id).select('-password');
+
+    if (!deletedUser) {
       return res
         .status(404)
         .json(errorResponse("User not found", "USER_NOT_FOUND"));
     }
-
-    // Remove user from array
-    const deletedUser = users.splice(userIndex, 1)[0];
-
-    // Remove user projects
-    delete userProjects[id];
 
     const response = successResponse(deletedUser, "User deleted successfully");
     res.json(response);

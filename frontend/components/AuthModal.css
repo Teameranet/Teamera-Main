@@ -217,6 +217,37 @@
   gap: 18px;
 }
 
+/* Error Message */
+.auth-error-message {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #fef2f2;
+  border: 1.5px solid #fecaca;
+  border-radius: 10px;
+  color: #dc2626;
+  font-size: 0.88rem;
+  font-weight: 500;
+  animation: authErrorIn 0.3s ease;
+}
+
+@keyframes authErrorIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.auth-error-message svg {
+  flex-shrink: 0;
+  color: #dc2626;
+}
+
 /* Field */
 .auth-field {
   display: flex;
@@ -257,6 +288,54 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.auth-field input.password-mismatch {
+  border-color: #f87171;
+  background: #fef2f2;
+}
+
+.auth-field input.password-mismatch:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.auth-field input.password-match {
+  border-color: #34d399;
+  background: #f0fdf4;
+}
+
+.auth-field input.password-match:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.auth-field-hint {
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-top: -2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.auth-field-hint.error {
+  color: #dc2626;
+}
+
+.auth-field-hint.success {
+  color: #10b981;
+}
+
+.auth-field-hint.error::before {
+  content: '✕';
+  font-size: 0.75rem;
+}
+
+.auth-field-hint.success::before {
+  content: '✓';
+  font-size: 0.85rem;
+}
+
 
 /* ─── Password Wrapper ─── */
 .auth-password-wrapper {

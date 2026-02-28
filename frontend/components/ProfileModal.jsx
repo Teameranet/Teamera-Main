@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import UserAvatar from './UserAvatar';
 import './ProfileModal.css';
-import { X, Github, Linkedin, Globe, Twitter, Instagram, Phone, Mail } from 'lucide-react';
+import { X, Github, Linkedin, Globe, Mail } from 'lucide-react';
 
 /**
  * ProfileModal Component
@@ -131,16 +131,15 @@ function ProfileModal({ user, onClose }) {
             <div className="profile-experience">
               <h3>Experience</h3>
               {(() => {
-                // Check both 'experiences' and 'experience' fields for backward compatibility
-                const experiences = Array.isArray(user.experiences) ? user.experiences : 
-                                 Array.isArray(user.experience) && typeof user.experience[0] === 'object' ? user.experience : [];
+                // Use 'experiences' array from user object (backend field)
+                const experiences = Array.isArray(user.experiences) ? user.experiences : [];
                 return experiences.length > 0 ? (
                 <div className="experience-list">
                   {experiences.map((exp, index) => (
                     <div key={index} className="experience-item">
                       <h4>{exp.title}</h4>
                       <p className="company-name">{exp.company}</p>
-                      <p className="experience-duration">{exp.duration || exp.period}</p>
+                      <p className="experience-duration">{exp.period || exp.duration}</p>
                       {exp.description && <p className="experience-description">{exp.description}</p>}
                       {exp.technologies && exp.technologies.length > 0 && (
                         <div className="experience-technologies">

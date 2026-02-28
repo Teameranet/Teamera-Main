@@ -61,8 +61,46 @@ function OnboardingModal({ onClose }) {
 
   const handleComplete = async () => {
     try {
+      // Map experience to skill level
+      const mapExperienceToSkillLevel = (experience) => {
+        switch(experience) {
+          case '0-1': return 'BEGINNER';
+          case '2-3': return 'INTERMEDIATE';
+          case '4-6': return 'ADVANCED';
+          case '7+': return 'EXPERT';
+          default: return 'INTERMEDIATE';
+        }
+      };
+
+      // Map years to numeric value
+      const mapExperienceToYears = (experience) => {
+        switch(experience) {
+          case '0-1': return 1;
+          case '2-3': return 2;
+          case '4-6': return 5;
+          case '7+': return 8;
+          default: return 1;
+        }
+      };
+
+      const skillLevel = mapExperienceToSkillLevel(formData.experience);
+      const skillYears = mapExperienceToYears(formData.experience);
+
+      // Format skills as objects with name, level, and years
+      const formattedSkills = formData.skills.map(skill => ({
+        name: skill,
+        level: skillLevel,
+        years: skillYears
+      }));
+
+      // Prepare profile data with formatted skills
+      const profileData = {
+        ...formData,
+        skills: formattedSkills
+      };
+
       // Update profile with onboarding data
-      const result = await updateProfile(formData);
+      const result = await updateProfile(profileData);
       if (result.success) {
         onClose();
       } else {
