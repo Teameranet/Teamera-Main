@@ -131,8 +131,9 @@ function ProfileModal({ user, onClose }) {
             <div className="profile-experience">
               <h3>Experience</h3>
               {(() => {
+                // Check both 'experiences' and 'experience' fields for backward compatibility
                 const experiences = Array.isArray(user.experiences) ? user.experiences : 
-                                 Array.isArray(user.experience) ? user.experience : [];
+                                 Array.isArray(user.experience) && typeof user.experience[0] === 'object' ? user.experience : [];
                 return experiences.length > 0 ? (
                 <div className="experience-list">
                   {experiences.map((exp, index) => (

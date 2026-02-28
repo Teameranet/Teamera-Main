@@ -59,9 +59,22 @@ function OnboardingModal({ onClose }) {
     if (currentStep > 0) setCurrentStep(currentStep - 1);
   };
 
-  const handleComplete = () => {
-    updateProfile(formData);
-    onClose();
+  const handleComplete = async () => {
+    try {
+      // Update profile with onboarding data
+      const result = await updateProfile(formData);
+      if (result.success) {
+        onClose();
+      } else {
+        console.error('Failed to save onboarding data:', result.error);
+        // Still close modal even if backend fails (data is saved locally)
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+      // Still close modal even if error occurs
+      onClose();
+    }
   };
 
   const canProceed = () => {

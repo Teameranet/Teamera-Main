@@ -10,6 +10,14 @@ class User {
     this.role = data.role || 'user';
     this.status = data.status || 'active';
     this.skills = data.skills || [];
+    this.experience = data.experience || '';
+    this.location = data.location || '';
+    this.title = data.title || '';
+    this.githubUrl = data.githubUrl || '';
+    this.linkedinUrl = data.linkedinUrl || '';
+    this.portfolioUrl = data.portfolioUrl || '';
+    this.experiences = data.experiences || [];
+    this.education = data.education || [];
     this.createdAt = data.createdAt || new Date().toISOString();
     this.updatedAt = data.updatedAt || new Date().toISOString();
   }
@@ -89,6 +97,14 @@ class User {
       role: data.role || 'user',
       status: 'active',
       skills: data.skills || [],
+      experience: data.experience || '',
+      location: data.location?.trim() || '',
+      title: data.title?.trim() || '',
+      githubUrl: data.githubUrl?.trim() || '',
+      linkedinUrl: data.linkedinUrl?.trim() || '',
+      portfolioUrl: data.portfolioUrl?.trim() || '',
+      experiences: data.experiences || [],
+      education: data.education || [],
     });
   }
 
@@ -119,6 +135,30 @@ class User {
     if (data.skills !== undefined) {
       this.skills = data.skills;
     }
+    if (data.experience !== undefined) {
+      this.experience = data.experience;
+    }
+    if (data.location !== undefined) {
+      this.location = data.location;
+    }
+    if (data.title !== undefined) {
+      this.title = data.title;
+    }
+    if (data.githubUrl !== undefined) {
+      this.githubUrl = data.githubUrl;
+    }
+    if (data.linkedinUrl !== undefined) {
+      this.linkedinUrl = data.linkedinUrl;
+    }
+    if (data.portfolioUrl !== undefined) {
+      this.portfolioUrl = data.portfolioUrl;
+    }
+    if (data.experiences !== undefined) {
+      this.experiences = data.experiences;
+    }
+    if (data.education !== undefined) {
+      this.education = data.education;
+    }
 
     this.updatedAt = new Date().toISOString();
     return this;
@@ -138,6 +178,14 @@ class User {
       role: this.role,
       status: this.status,
       skills: this.skills,
+      experience: this.experience,
+      location: this.location,
+      title: this.title,
+      githubUrl: this.githubUrl,
+      linkedinUrl: this.linkedinUrl,
+      portfolioUrl: this.portfolioUrl,
+      experiences: this.experiences,
+      education: this.education,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt
     };

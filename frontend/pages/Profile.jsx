@@ -11,7 +11,7 @@ import './Profile.css';
 // Main Profile component
 function Profile() {
   // Auth and project context hooks
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, setUser } = useAuth();
   const { getUserProjects, updateProjectStage, editProject, deleteProject, leaveProject } = useProjects();
 
   // Function to map experience to skill level
@@ -224,28 +224,63 @@ function Profile() {
 
   // Initialize formData with user data from signup
   useEffect(() => {
-    if (user) {
-      const skillLevel = mapExperienceToSkillLevel(user.experience);
+    const fetchUserProfile = async () => {
+      if (user && user.id) {
+        try {
+          // Fetch latest profile data from backend
+          const response = await fetch(`/api/users/${user.id}/profile`);
+          if (response.ok) {
+            const result = await response.json();
+            const backendUser = result.data;
+            
+            // Update local user state with backend data
+            const updatedUser = { ...user, ...backendUser };
+            setUser(updatedUser);
+            localStorage.setItem('teamera_user', JSON.stringify(updatedUser));
+            
+            // Initialize form data with backend user data
+            initializeFormData(updatedUser);
+          } else {
+            // If backend fetch fails, use local user data
+            initializeFormData(user);
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+          // If error occurs, use local user data
+          initializeFormData(user);
+        }
+      } else if (user) {
+        // No user ID, use local data
+        initializeFormData(user);
+      }
+    };
+
+    const initializeFormData = (userData) => {
+      const skillLevel = mapExperienceToSkillLevel(userData.experience);
       
       setFormData({
-        name: user.name || '',
-        email: user.email || '',
-        bio: user.bio || '',
-        location: user.location || '',
-        title: user.title || getRoleDisplayTitle(user.role),
-        githubUrl: user.githubUrl || '',
-        linkedinUrl: user.linkedinUrl || '',
-        portfolioUrl: user.portfolioUrl || '',
-        skills: Array.isArray(user.skills)
-          ? user.skills.map(skill => typeof skill === 'string'
+        name: userData.name || '',
+        email: userData.email || '',
+        bio: userData.bio || '',
+        location: userData.location || '',
+        title: userData.title || getRoleDisplayTitle(userData.role),
+        githubUrl: userData.githubUrl || '',
+        linkedinUrl: userData.linkedinUrl || '',
+        portfolioUrl: userData.portfolioUrl || '',
+        skills: Array.isArray(userData.skills)
+          ? userData.skills.map(skill => typeof skill === 'string'
             ? { name: skill, level: skillLevel, years: 1 }
             : skill)
           : [],
-        experience: Array.isArray(user.experience) ? user.experience : [],
-        education: Array.isArray(user.education) ? user.education : []
+        experience: Array.isArray(userData.experiences) ? userData.experiences : 
+                    Array.isArray(userData.experience) && typeof userData.experience[0] === 'object' 
+                    ? userData.experience : [],
+        education: Array.isArray(userData.education) ? userData.education : []
       });
-    }
-  }, [user]);
+    };
+
+    fetchUserProfile();
+  }, [user?.id]); // Only re-run when user ID changes
 
   // Initialize formData state
   // function: useState for formData, no API needed
@@ -336,10 +371,29 @@ function Profile() {
 
   // Save profile changes
   // function: handleSave, add API call to update user profile here
-  const handleSave = () => {
-    // Add API call to update user profile in backend here
-    updateProfile(formData);
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      // Prepare data for backend - map 'experience' array to 'experiences'
+      const profileData = {
+        ...formData,
+        experiences: formData.experience, // Backend expects 'experiences'
+      };
+      
+      // Update profile via context (which calls backend)
+      const result = await updateProfile(profileData);
+      
+      if (result.success) {
+        // Update local user state
+        setUser(result.user);
+        setIsEditing(false);
+      } else {
+        console.error('Failed to update profile:', result.error);
+        alert('Failed to update profile. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('An error occurred while saving your profile.');
+    }
   };
 
   // Cancel editing and reset formData to user data or defaults

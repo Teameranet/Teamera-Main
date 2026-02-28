@@ -54,7 +54,12 @@ export const AuthProvider = ({ children }) => {
       if (response.ok) {
         const result = await response.json();
         const newUser = result.data;
-        await login(newUser);
+        
+        // Store user locally and in localStorage
+        setUser(newUser);
+        localStorage.setItem('teamera_user', JSON.stringify(newUser));
+        setShowAuthModal(false);
+        
         return { success: true, user: newUser };
       } else {
         const error = await response.json();
@@ -132,6 +137,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    setUser,
     login,
     logout,
     signup,
