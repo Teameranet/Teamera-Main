@@ -14,6 +14,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [profileUpdateTrigger, setProfileUpdateTrigger] = useState(0);
   
   /* Demo users disabled
   const demoUsers = [];
@@ -118,6 +119,10 @@ export const AuthProvider = ({ children }) => {
           const mergedUser = { ...updatedUser, ...backendUser, id: backendUser._id || backendUser.id };
           setUser(mergedUser);
           localStorage.setItem('teamera_user', JSON.stringify(mergedUser));
+          
+          // Trigger profile refresh in components
+          setProfileUpdateTrigger(prev => prev + 1);
+          
           console.log('Profile synced with backend successfully');
           return { success: true, user: mergedUser };
         } else {
@@ -127,6 +132,9 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
+      // Trigger profile refresh even for local-only updates
+      setProfileUpdateTrigger(prev => prev + 1);
+      
       return { success: true, user: updatedUser };
     } catch (error) {
       console.error('Profile update error:', error);
@@ -174,6 +182,7 @@ export const AuthProvider = ({ children }) => {
     storeUserProfile,
     loading,
     isAuthenticated: !!user,
+    profileUpdateTrigger,
     // demoUsers,
     // loginAsDemoUser,
     showAuthModal,

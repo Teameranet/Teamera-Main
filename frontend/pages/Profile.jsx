@@ -11,7 +11,7 @@ import './Profile.css';
 // Main Profile component
 function Profile() {
   // Auth and project context hooks
-  const { user, updateProfile, setUser } = useAuth();
+  const { user, updateProfile, setUser, profileUpdateTrigger } = useAuth();
   const { getUserProjects, updateProjectStage, editProject, deleteProject, leaveProject } = useProjects();
 
   // Function to map experience to skill level
@@ -289,7 +289,7 @@ function Profile() {
     };
 
     fetchUserProfile();
-  }, [user?.id, user?._id]); // Re-run when user ID changes
+  }, [profileUpdateTrigger, user?.id, user?._id, setUser]); // Re-run when profile is updated or user ID changes
 
   // Initialize formData state
   // function: useState for formData, no API needed
