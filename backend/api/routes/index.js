@@ -2,6 +2,7 @@ import express from "express";
 import helloController from "../controllers/helloController.js";
 import contactController from "../controllers/contactController.js";
 import userController from "../controllers/userController.js";
+import dashboardController from "../controllers/dashboardController.js";
 import { logger } from "../../middleware/auth.js";
 import { validateRegistration } from "../../middleware/validation.js";
 
@@ -27,6 +28,16 @@ router.put("/users/:id", userController.updateUser);
 router.put("/users/:id/profile", userController.updateUserProfile);
 router.delete("/users/:id", userController.deleteUser);
 
+// Dashboard endpoints
+router.get("/dashboard/:userId", dashboardController.getDashboard);
+router.get("/dashboard/:userId/stats", dashboardController.getDashboardStats);
+router.get("/dashboard/:userId/bookmarks", dashboardController.getBookmarkedProjects);
+router.get("/dashboard/:userId/applications", dashboardController.getApplications);
+router.post("/dashboard/:userId/bookmarks", dashboardController.addBookmark);
+router.delete("/dashboard/:userId/bookmarks/:projectId", dashboardController.removeBookmark);
+router.post("/dashboard/:userId/applications", dashboardController.addApplication);
+router.put("/dashboard/:userId/applications/:applicationId", dashboardController.updateApplicationStatus);
+
 // API info endpoint
 router.get("/", (req, res) => {
   res.json({
@@ -45,6 +56,16 @@ router.get("/", (req, res) => {
         update: "PUT /api/users/:id",
         updateProfile: "PUT /api/users/:id/profile",
         delete: "DELETE /api/users/:id",
+      },
+      dashboard: {
+        get: "GET /api/dashboard/:userId",
+        getStats: "GET /api/dashboard/:userId/stats",
+        getBookmarks: "GET /api/dashboard/:userId/bookmarks",
+        getApplications: "GET /api/dashboard/:userId/applications",
+        addBookmark: "POST /api/dashboard/:userId/bookmarks",
+        removeBookmark: "DELETE /api/dashboard/:userId/bookmarks/:projectId",
+        addApplication: "POST /api/dashboard/:userId/applications",
+        updateApplicationStatus: "PUT /api/dashboard/:userId/applications/:applicationId",
       },
     },
     timestamp: new Date().toISOString(),

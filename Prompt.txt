@@ -694,3 +694,7 @@ In DB the full name is null intigrate that Full name in 'AuthModal' & display th
 - After refresh the page User cannot logged in immediately 
 11.Fix the issue of Supabase Auth prevents the use of compromised passwords by checking against HaveIBeenPwned.org. Enable this feature to enhance security.
 12.Ensure every  function is as per requment test it in brwoser with Console Problem cheak the function is working or not
+
+
+
+now since login signup perfectly done .now move to create project api creation for that write module routes and everything that needed .test it then integrate with frontend .
