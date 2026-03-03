@@ -11,6 +11,9 @@
     "preview": "vite preview",
     "server": "node backend/server.js",
     "dev:server": "nodemon backend/server.js",
+    "dev:frontend": "vite",
+    "dev:backend": "cd backend && npm run dev",
+    "test:connection": "node test-connection.js",
     "predeploy": "npm run build"
   },
   "dependencies": {
