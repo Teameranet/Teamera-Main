@@ -698,3 +698,19 @@ In DB the full name is null intigrate that Full name in 'AuthModal' & display th
 
 
 now since login signup perfectly done .now move to create project api creation for that write module routes and everything that needed .test it then integrate with frontend .
+
+Users must enter an email address for each team member
+Click "Verify Email" to check if that email is registered
+If registered: ProfileModal pops up showing the user's profile, and the member is marked as verified
+If not registered: Alert message appears saying the user must be registered first
+Only verified team members can be added to the project
+
+# integrated the complete backend database system with your frontend for the Project Creation & Edit Module.
+
+Create Project → Saves to MongoDB → Appears in Projects page & Profile page
+
+Edit Project → Updates MongoDB → Changes display everywhere
+
+Delete Project → Removes from MongoDB → Disappears from all views
+
+Page Refresh → Loads from MongoDB → All data persists
