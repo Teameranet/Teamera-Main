@@ -714,3 +714,7 @@ Edit Project → Updates MongoDB → Changes display everywhere
 Delete Project → Removes from MongoDB → Disappears from all views
 
 Page Refresh → Loads from MongoDB → All data persists
+
+# Integrated the complete backend with database fletch the data on frontend properly 
+
+- If user apply the Project
