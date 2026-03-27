@@ -398,6 +398,19 @@
   justify-content: center;
 }
 
+/* Verified badge */
+.verified-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #d1fae5;
+  color: #065f46;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
 /* Hidden avatar input */
 .avatar-input {
   display: none;
@@ -423,6 +436,69 @@
 /* Member details section */
 .member-details {
   flex: 1;
+}
+
+/* Email verification group */
+.email-verification-group {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.email-verification-group input {
+  flex: 1;
+}
+
+/* Verify email button */
+.verify-email-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.verify-email-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.verify-email-btn.verified {
+  background: #10b981;
+  cursor: default;
+}
+
+.verify-email-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Verified input styling */
+.verified-input {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  cursor: not-allowed;
+}
+
+/* Verification warning */
+.verification-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #d97706;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #fef3c7;
+  border-radius: 6px;
 }
 
 /* Member details form row spacing */
@@ -626,6 +702,15 @@
   .team-member-form {
     flex-direction: column;
     text-align: center;
+  }
+  
+  .email-verification-group {
+    flex-direction: column;
+  }
+  
+  .verify-email-btn {
+    width: 100%;
+    justify-content: center;
   }
   
   .member-details .form-row {

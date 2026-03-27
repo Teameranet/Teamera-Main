@@ -83,6 +83,7 @@
 }
 
 .invite-members-btn,
+.leave-project-btn,
 .new-task-btn,
 .upload-btn {
   display: flex;
@@ -104,6 +105,15 @@
 
 .invite-members-btn:hover {
   background: #e5e7eb;
+}
+
+.leave-project-btn {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.leave-project-btn:hover {
+  background: #fecaca;
 }
 
 .new-task-btn {
@@ -1292,6 +1302,7 @@
   }
 
   .invite-members-btn,
+  .leave-project-btn,
   .new-task-btn,
   .upload-btn {
     flex: 1;

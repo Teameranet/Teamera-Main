@@ -263,6 +263,28 @@ const userController = {
     const response = successResponse(deletedUser, "User deleted successfully");
     res.json(response);
   }),
+
+  // Verify user by email
+  verifyUserByEmail: asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+      return res
+        .status(400)
+        .json(errorResponse("Email is required", "MISSING_EMAIL"));
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() }).select('-password');
+
+    if (!user) {
+      return res
+        .status(404)
+        .json(errorResponse("User not found with this email", "USER_NOT_FOUND"));
+    }
+
+    const response = successResponse(user, "User verified successfully");
+    res.json(response);
+  }),
 };
 
 export default userController;

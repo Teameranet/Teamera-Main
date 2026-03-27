@@ -7,7 +7,6 @@ function OnboardingModal({ onClose }) {
   const [formData, setFormData] = useState({
     role: '',
     skills: [],
-    experience: '',
     bio: '',
     location: '',
   });
@@ -68,32 +67,19 @@ function OnboardingModal({ onClose }) {
           case '2-3': return 'INTERMEDIATE';
           case '4-6': return 'ADVANCED';
           case '7+': return 'EXPERT';
-          default: return 'INTERMEDIATE';
-        }
-      };
-
-      // Map years to numeric value
-      const mapExperienceToYears = (experience) => {
-        switch(experience) {
-          case '0-1': return 1;
-          case '2-3': return 2;
-          case '4-6': return 5;
-          case '7+': return 8;
-          default: return 1;
+          default: return 'BEGINNER';
         }
       };
 
       const skillLevel = mapExperienceToSkillLevel(formData.experience);
-      const skillYears = mapExperienceToYears(formData.experience);
 
-      // Format skills as objects with name, level, and years
+      // Format skills as objects with name and level based on experience
       const formattedSkills = formData.skills.map(skill => ({
         name: skill,
-        level: skillLevel,
-        years: skillYears
+        level: skillLevel
       }));
 
-      // Prepare profile data with formatted skills
+      // Prepare profile data with formatted skills and experience
       const profileData = {
         ...formData,
         skills: formattedSkills
@@ -183,7 +169,7 @@ function OnboardingModal({ onClose }) {
                 <option value="">Select experience level</option>
                 <option value="0-1">0-1 years (Beginner)</option>
                 <option value="2-3">2-3 years (Intermediate)</option>
-                <option value="4-6">4-6 years (Experienced)</option>
+                <option value="4-6">4-6 years (Advanced)</option>
                 <option value="7+">7+ years (Expert)</option>
               </select>
             </div>

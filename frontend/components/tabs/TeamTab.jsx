@@ -79,39 +79,48 @@ function TeamTab({ project, isAdmin }) {
 
       <div ref={teamListRef} className="team-list scrollable">
         {teamMembers.length > 0 ? (
-          teamMembers.map((member) => (
-            <div key={member.id} className="member-item">
-              <UserAvatar 
-                user={member} 
-                size="small" 
-                name={member.name}
-                color={member.avatar ? undefined : member.applicantColor}
-              />
-              <div className="member-info">
-                <h4>{member.name}</h4>
-                <p>{getMemberEmail(member) || member.email || 'No email provided'}</p>
-              </div>
-              <div 
-                className="member-role"
-                style={{
-                  backgroundColor: getRoleColor(member.role),
-                  opacity: member.role === 'MEMBER' ? 0.8 : 1
-                }}
-              >
-                {getDisplayRole(member.role)}
-              </div>
-              {isAdmin && member.role !== 'OWNER' && member.role !== 'Founder' && (
-                <button 
-                  className={`remove-member-btn ${confirmingRemoval === member.id ? 'confirming' : ''}`}
-                  onClick={() => handleRemoveMember(member.id)}
-                  aria-label={confirmingRemoval === member.id ? "Confirm removal" : "Remove member"}
+          teamMembers.map((member, index) => {
+            // Safely extract ID - handle cases where id might be an object
+            const memberId = typeof member.id === 'string' ? member.id : 
+                             typeof member._id === 'string' ? member._id :
+                             member.id?._id || member.id?.toString() || 
+                             member._id?.toString() || 
+                             `${member.name}-${member.role}-${index}`;
+            
+            return (
+              <div key={memberId} className="member-item">
+                <UserAvatar 
+                  user={member} 
+                  size="small" 
+                  name={member.name}
+                  color={member.avatar ? undefined : member.applicantColor}
+                />
+                <div className="member-info">
+                  <h4>{member.name}</h4>
+                  <p>{getMemberEmail(member) || member.email || 'No email provided'}</p>
+                </div>
+                <div 
+                  className="member-role"
+                  style={{
+                    backgroundColor: getRoleColor(member.role),
+                    opacity: member.role === 'MEMBER' ? 0.8 : 1
+                  }}
                 >
-                  <X size={18} />
-                  {confirmingRemoval === member.id && <span className="confirm-text">Confirm</span>}
-                </button>
-              )}
-            </div>
-          ))
+                  {getDisplayRole(member.role)}
+                </div>
+                {isAdmin && member.role !== 'OWNER' && member.role !== 'Founder' && (
+                  <button 
+                    className={`remove-member-btn ${confirmingRemoval === memberId ? 'confirming' : ''}`}
+                    onClick={() => handleRemoveMember(memberId)}
+                    aria-label={confirmingRemoval === memberId ? "Confirm removal" : "Remove member"}
+                  >
+                    <X size={18} />
+                    {confirmingRemoval === memberId && <span className="confirm-text">Confirm</span>}
+                  </button>
+                )}
+              </div>
+            );
+          })
         ) : (
           <div className="empty-team">
             <Users size={48} />

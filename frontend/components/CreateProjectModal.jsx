@@ -1,9 +1,10 @@
 // This is the CreateProjectModal component for creating or editing a project
 import { useState, useEffect } from 'react';
-import { X, Plus, Minus, Upload } from 'lucide-react';
+import { X, Plus, Minus, Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import { useProjects } from '../context/ProjectContext';
 import { useAuth } from '../context/AuthContext';
 import UserAvatar from './UserAvatar';
+import ProfileModal from './ProfileModal';
 import './CreateProjectModal.css';
 
 function CreateProjectModal({ onClose, projectToEdit }) {
@@ -21,6 +22,10 @@ function CreateProjectModal({ onClose, projectToEdit }) {
     teamMembers: []
   });
   
+  // State for profile modal
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [selectedUserProfile, setSelectedUserProfile] = useState(null);
+  
   const { createProject, editProject } = useProjects();
   const { user } = useAuth();
   const isEditMode = Boolean(projectToEdit);
@@ -31,11 +36,22 @@ function CreateProjectModal({ onClose, projectToEdit }) {
       // Format team members, excluding the founder
       const teamMembersWithoutFounder = projectToEdit.teamMembers
         .filter(member => member.role !== "Founder")
-        .map(member => ({
-          name: member.name,
-          position: member.role,
-          id: member.id
-        }));
+        .map(member => {
+          // Extract ID - handle cases where id might be an object (populated) or string
+          const memberId = typeof member.id === 'string' ? member.id : 
+                          typeof member._id === 'string' ? member._id :
+                          member.id?._id || member.id?.toString() || 
+                          member._id?.toString() || null;
+          
+          return {
+            name: member.name,
+            position: member.role,
+            email: member.email || '',
+            id: memberId,
+            verified: true, // Existing members are already verified
+            tempId: memberId || `temp-${Date.now()}-${Math.random()}` // Use id or generate tempId
+          };
+        });
       
       setFormData({
         title: projectToEdit.title || '',
@@ -165,7 +181,13 @@ function CreateProjectModal({ onClose, projectToEdit }) {
   const addTeamMember = () => {
     setFormData(prev => ({
       ...prev,
-      teamMembers: [...prev.teamMembers, { name: '', position: '' }]
+      teamMembers: [...prev.teamMembers, { 
+        name: '', 
+        position: '', 
+        email: '', 
+        verified: false,
+        tempId: `temp-${Date.now()}-${Math.random()}` // Unique temporary ID
+      }]
     }));
   };
 
@@ -175,6 +197,82 @@ function CreateProjectModal({ onClose, projectToEdit }) {
       ...prev,
       teamMembers: prev.teamMembers.filter((_, i) => i !== index)
     }));
+  };
+
+  // Verify email for team member
+  const verifyEmail = async (index) => {
+    const member = formData.teamMembers[index];
+    
+    if (!member.email || !member.email.trim()) {
+      alert('Please enter an email address');
+      return;
+    }
+
+    // Check if this is the project owner in edit mode
+    if (isEditMode && projectToEdit) {
+      const founder = projectToEdit.teamMembers.find(m => m.role === "Founder");
+      if (founder && founder.email && 
+          member.email.trim().toLowerCase() === founder.email.toLowerCase()) {
+        alert('This is the project owner. The owner is automatically included in the team.');
+        // Remove this team member entry
+        removeTeamMember(index);
+        return;
+      }
+    }
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/users/verify-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: member.email.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Check if this user is the current logged-in user (for new projects)
+        if (!isEditMode && user && (data.data._id === user.id || data.data._id === user._id)) {
+          alert('You are the project owner and will be automatically added as the founder.');
+          removeTeamMember(index);
+          return;
+        }
+        
+        // User found - update member with verified data
+        setFormData(prev => ({
+          ...prev,
+          teamMembers: prev.teamMembers.map((m, i) =>
+            i === index
+              ? {
+                  ...m,
+                  name: data.data.name,
+                  id: data.data._id || data.data.id,
+                  verified: true,
+                  userData: data.data,
+                  tempId: m.tempId // Preserve tempId for key stability
+                }
+              : m
+          )
+        }));
+        
+        // Show profile modal
+        setSelectedUserProfile(data.data);
+        setShowProfileModal(true);
+      } else {
+        // User not found
+        alert('User not found. The email must be registered first.');
+        setFormData(prev => ({
+          ...prev,
+          teamMembers: prev.teamMembers.map((m, i) =>
+            i === index ? { ...m, verified: false } : m
+          )
+        }));
+      }
+    } catch (error) {
+      console.error('Error verifying email:', error);
+      alert('Error verifying email. Please try again.');
+    }
   };
 
   // Handle moving to the next step or submitting
@@ -199,11 +297,13 @@ function CreateProjectModal({ onClose, projectToEdit }) {
 
     // Process team members for submission
     const processedTeamMembers = formData.teamMembers
-      .filter(member => member.name.trim() !== '')
+      .filter(member => member.name.trim() !== '' && member.position && member.position.trim() !== '')
       .map(member => ({
-        id: member.id || Date.now() + Math.random(),
+        // Only include id if it's a valid MongoDB ObjectId (24 hex characters) or existing user ID
+        ...(member.id && typeof member.id === 'string' && member.id.length === 24 ? { id: member.id } : {}),
         name: member.name,
-        role: member.position // Map position to role
+        role: member.position, // Map position to role
+        email: member.email || '' // Include email
       }));
 
     // Create project data object
@@ -213,18 +313,54 @@ function CreateProjectModal({ onClose, projectToEdit }) {
     };
 
     if (isEditMode) {
-      // When editing, we don't change the team members structure completely
-      // We just update the non-founder members
-      editProject(projectToEdit.id, {
-        ...projectData,
-        // No need to include teamMembers here as editProject will preserve the founder
-        // and we've already filtered out the founder when setting formData
-        teamMembers: processedTeamMembers,
-      });
+      // When editing, use the correct project ID (could be id or _id)
+      const projectId = projectToEdit.id || projectToEdit._id;
+      
+      // Find the founder from the original project
+      const founder = projectToEdit.teamMembers.find(member => member.role === "Founder");
+      
+      if (founder) {
+        // Extract founder ID for comparison
+        const founderId = typeof founder.id === 'string' ? founder.id : 
+                         typeof founder._id === 'string' ? founder._id :
+                         founder.id?._id || founder.id?.toString() || 
+                         founder._id?.toString() || null;
+        
+        // Remove any duplicate founder entries from processedTeamMembers
+        const teamMembersWithoutFounder = processedTeamMembers.filter(member => {
+          // Filter out if this member is the founder (by ID or email)
+          const isDuplicateById = member.id && founderId && member.id === founderId;
+          const isDuplicateByEmail = member.email && founder.email && 
+                                     member.email.toLowerCase() === founder.email.toLowerCase();
+          return !isDuplicateById && !isDuplicateByEmail;
+        });
+        
+        // Add founder at the beginning
+        const teamMembersWithFounder = [
+          {
+            id: founderId,
+            name: founder.name,
+            role: "Founder",
+            email: founder.email || ''
+          },
+          ...teamMembersWithoutFounder
+        ];
+        
+        editProject(projectId, {
+          ...projectData,
+          teamMembers: teamMembersWithFounder,
+        });
+      } else {
+        // No founder found, just use processed members
+        editProject(projectId, {
+          ...projectData,
+          teamMembers: processedTeamMembers,
+        });
+      }
     } else {
       // For new projects, add the current user as a founder
       projectData.teamMembers = [
-        { id: user.id, name: user.name, role: "Founder", email: user.email },
+        { id: user.id || user._id, name: user.name, role: "Founder", email: user.email },
         ...processedTeamMembers
       ];
       createProject(projectData);
@@ -241,7 +377,9 @@ function CreateProjectModal({ onClose, projectToEdit }) {
       case 1:
         return formData.openPositions.some(pos => pos.role.trim() !== '');
       case 2:
-        return true; // Team members are optional
+        // All team members must be verified and have a position if any are added
+        return formData.teamMembers.length === 0 || 
+               formData.teamMembers.every(m => m.verified && m.position && m.position.trim() !== '');
       case 3:
         return formData.funding && formData.timeline;
       default:
@@ -415,13 +553,13 @@ function CreateProjectModal({ onClose, projectToEdit }) {
           <div className="step-content">
             <div className="form-group">
               <label>Team Members (Optional)</label>
-              <p className="form-description">Add existing team members to your project</p>
+              <p className="form-description">Add existing team members by verifying their email addresses</p>
 
               {formData.teamMembers.map((member, index) => (
-                <div key={index} className="team-member-form">
+                <div key={member.tempId || member.id || `member-${index}`} className="team-member-form">
                   <div className="member-avatar-section">
                     <div className="avatar-preview">
-                      {member.name ? (
+                      {member.verified && member.name ? (
                         <UserAvatar user={member} size="medium" />
                       ) : (
                         <div className="avatar-placeholder">
@@ -429,24 +567,75 @@ function CreateProjectModal({ onClose, projectToEdit }) {
                         </div>
                       )}
                     </div>
-                    {/* Avatar is now automatically generated */}
+                    {member.verified && (
+                      <div className="verified-badge">
+                        <CheckCircle size={16} />
+                        <span>Verified</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="member-details">
                     <div className="form-row">
-                      <input
-                        type="text"
-                        value={member.name}
-                        onChange={(e) => handleTeamMemberChange(index, 'name', e.target.value)}
-                        placeholder="Member name"
-                      />
-                      <input
-                        type="text"
-                        value={member.position}
-                        onChange={(e) => handleTeamMemberChange(index, 'position', e.target.value)}
-                        placeholder="Position/Role"
-                      />
+                      <div className="email-verification-group">
+                        <input
+                          type="email"
+                          value={member.email}
+                          onChange={(e) => handleTeamMemberChange(index, 'email', e.target.value)}
+                          placeholder="Member email address"
+                          disabled={member.verified}
+                          className={member.verified ? 'verified-input' : ''}
+                        />
+                        <button
+                          type="button"
+                          className={`verify-email-btn ${member.verified ? 'verified' : ''}`}
+                          onClick={() => verifyEmail(index)}
+                          disabled={member.verified}
+                        >
+                          {member.verified ? (
+                            <>
+                              <CheckCircle size={16} />
+                              Verified
+                            </>
+                          ) : (
+                            'Verify Email'
+                          )}
+                        </button>
+                      </div>
                     </div>
+                    
+                    {member.verified && (
+                      <div className="form-row">
+                        <input
+                          type="text"
+                          value={member.name}
+                          readOnly
+                          placeholder="Member name"
+                          className="verified-input"
+                        />
+                        <input
+                          type="text"
+                          value={member.position}
+                          onChange={(e) => handleTeamMemberChange(index, 'position', e.target.value)}
+                          placeholder="Position/Role *"
+                          required
+                        />
+                      </div>
+                    )}
+                    
+                    {member.verified && (!member.position || member.position.trim() === '') && (
+                      <div className="verification-warning">
+                        <AlertCircle size={14} />
+                        <span>Please enter a position/role for this member</span>
+                      </div>
+                    )}
+                    
+                    {!member.verified && member.email && (
+                      <div className="verification-warning">
+                        <AlertCircle size={14} />
+                        <span>Please verify this email to add the member</span>
+                      </div>
+                    )}
                   </div>
 
                   <button
@@ -528,49 +717,59 @@ function CreateProjectModal({ onClose, projectToEdit }) {
 
   // Render the modal UI
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="create-project-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{isEditMode ? 'Edit Project' : 'Create New Project'}</h2>
-          <button className="close-btn" onClick={onClose}>
-            <X size={24} />
-          </button>
-        </div>
-
-        <div className="progress-bar">
-          <div
-            className="progress-fill"
-            style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-          />
-        </div>
-
-        <div className="modal-content">
-          <div className="step-header">
-            <h3>{steps[currentStep].title}</h3>
-            <span className="step-counter">
-              Step {currentStep + 1} of {steps.length}
-            </span>
+    <>
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="create-project-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2>{isEditMode ? 'Edit Project' : 'Create New Project'}</h2>
+            <button className="close-btn" onClick={onClose}>
+              <X size={24} />
+            </button>
           </div>
 
-          {renderStepContent()}
+          <div className="progress-bar">
+            <div
+              className="progress-fill"
+              style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+            />
+          </div>
 
-          <div className="step-actions">
-            {currentStep > 0 && (
-              <button className="prev-btn" onClick={handlePrevious}>
-                Previous
+          <div className="modal-content">
+            <div className="step-header">
+              <h3>{steps[currentStep].title}</h3>
+              <span className="step-counter">
+                Step {currentStep + 1} of {steps.length}
+              </span>
+            </div>
+
+            {renderStepContent()}
+
+            <div className="step-actions">
+              {currentStep > 0 && (
+                <button className="prev-btn" onClick={handlePrevious}>
+                  Previous
+                </button>
+              )}
+              <button
+                className="next-btn"
+                onClick={handleNext}
+                disabled={!canProceed()}
+              >
+                {currentStep === steps.length - 1 ? (isEditMode ? 'Save Changes' : 'Create Project') : 'Next'}
               </button>
-            )}
-            <button
-              className="next-btn"
-              onClick={handleNext}
-              disabled={!canProceed()}
-            >
-              {currentStep === steps.length - 1 ? (isEditMode ? 'Save Changes' : 'Create Project') : 'Next'}
-            </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+      
+      {/* Profile Modal */}
+      {showProfileModal && selectedUserProfile && (
+        <ProfileModal
+          user={selectedUserProfile}
+          onClose={() => setShowProfileModal(false)}
+        />
+      )}
+    </>
   );
 }
 

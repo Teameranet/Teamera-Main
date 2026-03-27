@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, MessageCircle, FileText, CheckSquare, Copy, User, Users, Plus, Upload } from 'lucide-react';
+import { X, MessageCircle, FileText, CheckSquare, Copy, User, Users, Plus, Upload, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProjects } from '../context/ProjectContext';
 import ChatTab from './tabs/ChatTab';
@@ -16,7 +16,7 @@ function CollaborationSpace({ onClose, activeProject = null, defaultTab = 'chat'
   const [newTask, setNewTask] = useState({ title: '', description: '', assignee: '', dueDate: '', priority: 'medium' });
   const [isUploading, setIsUploading] = useState(false);
   const { user } = useAuth();
-  const { projects } = useProjects();
+  const { projects, leaveProject } = useProjects();
   const contentRef = useRef(null);
 
   // Filter projects where user is a team member (no limit)
@@ -222,20 +222,85 @@ function CollaborationSpace({ onClose, activeProject = null, defaultTab = 'chat'
     </div>
   );
 
+  // Handle leave project
+  const handleLeaveProject = async () => {
+    if (!selectedProject || isOwner || !user) return;
+
+    const confirmLeave = window.confirm(
+      `Are you sure you want to leave "${selectedProject.title}"? You will need to be re-invited to rejoin.`
+    );
+
+    if (!confirmLeave) return;
+
+    try {
+      // Get user ID from the project's team members
+      const currentMember = selectedProject.teamMembers.find(member => member.name === user.name);
+      
+      // Extract the actual ID string, handling both ObjectId objects and strings
+      let userId = null;
+      if (currentMember?.id) {
+        // If id is an object with _id property (populated reference)
+        if (typeof currentMember.id === 'object' && currentMember.id._id) {
+          userId = currentMember.id._id;
+        } else {
+          // If id is already a string
+          userId = currentMember.id;
+        }
+      } else if (user.id) {
+        userId = user.id;
+      } else if (user._id) {
+        userId = user._id;
+      }
+
+      if (!userId) {
+        console.error('Unable to determine user ID', { currentMember, user });
+        alert('Unable to determine user ID. Please try again.');
+        return;
+      }
+
+      console.log('Leaving project with userId:', userId, 'projectId:', selectedProject.id || selectedProject._id);
+
+      // Call the leaveProject function from ProjectContext
+      const success = await leaveProject(selectedProject.id || selectedProject._id, userId);
+
+      if (success) {
+        alert('You have successfully left the project.');
+        
+        // Reset selected project
+        setSelectedProject(null);
+      } else {
+        alert('Failed to leave project. You may be the project owner or an error occurred.');
+      }
+    } catch (error) {
+      console.error('Error leaving project:', error);
+      alert('Failed to leave project. Please try again.');
+    }
+  };
+
   // Render project selector
   const renderProjectSelector = () => (
     <div className="project-selector">
       <div className="selector-header">
         <label htmlFor="project-select">Your Projects</label>
         <div className="selector-buttons">
-          {isOwner && activeTab === 'team' && (
-            <button
-              className="invite-members-btn"
-              onClick={() => setShowInviteModal(true)}
-            >
-              <Users size={16} />
-              Invite Members
-            </button>
+          {activeTab === 'team' && selectedProject && (
+            isOwner ? (
+              <button
+                className="invite-members-btn"
+                onClick={() => setShowInviteModal(true)}
+              >
+                <Users size={16} />
+                Invite Members
+              </button>
+            ) : (
+              <button
+                className="leave-project-btn"
+                onClick={handleLeaveProject}
+              >
+                <LogOut size={16} />
+                Leave Project
+              </button>
+            )
           )}
           {activeTab === 'tasks' && selectedProject && (
             <button

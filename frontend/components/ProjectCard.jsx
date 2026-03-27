@@ -5,11 +5,12 @@ import './ProjectCard.css';
 
 function ProjectCard({ project, onClick, isOwned, isParticipating, onEdit, onDelete, onLeave }) {
   const { toggleBookmark, isProjectBookmarked } = useProjects();
-  const isBookmarked = isProjectBookmarked(project.id);
+  const projectId = project.id || project._id;
+  const isBookmarked = isProjectBookmarked(projectId);
 
   const handleBookmark = (e) => {
     e.stopPropagation();
-    toggleBookmark(project.id);
+    toggleBookmark(projectId);
   };
 
   const handleShare = (e) => {
@@ -25,12 +26,12 @@ function ProjectCard({ project, onClick, isOwned, isParticipating, onEdit, onDel
   
   const handleDelete = (e) => {
     e.stopPropagation();
-    if (onDelete) onDelete(project.id);
+    if (onDelete) onDelete(projectId);
   };
   
   const handleLeave = (e) => {
     e.stopPropagation();
-    if (onLeave) onLeave(project.id);
+    if (onLeave) onLeave(projectId);
   };
   
   // Find the founder - ensure teamMembers exists and is an array

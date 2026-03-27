@@ -1,6 +1,11 @@
 import mongoose from 'mongoose';
 
 const projectSchema = new mongoose.Schema({
+  ownerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false
+  },
   title: {
     type: String,
     required: [true, 'Project title is required'],
@@ -9,28 +14,31 @@ const projectSchema = new mongoose.Schema({
   },
   description: {
     type: String,
-    required: [true, 'Project description is required'],
-    maxlength: [2000, 'Description must be less than 2000 characters']
+    required: [true, 'Project description is required']
   },
   stage: {
     type: String,
-    enum: ['Ideation Stage', 'Idea Validation', 'MVP Development', 'Beta Testing', 'Market Ready'],
+    enum: ['Ideation Stage', 'Idea Validation', 'MVP Development', 'Beta Testing', 'Market Ready', 'Scaling'],
     default: 'Ideation Stage'
   },
   industry: {
     type: String,
     required: [true, 'Industry is required']
   },
-  requiredSkills: [{
-    type: String
-  }],
   teamMembers: [{
     id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+      ref: 'User',
+      required: false
     },
-    name: String,
-    role: String,
+    name: {
+      type: String,
+      required: true
+    },
+    role: {
+      type: String,
+      required: true
+    },
     avatar: String,
     email: String,
     applicantColor: String
@@ -44,24 +52,13 @@ const projectSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  timeline: {
+    type: String,
+    default: ''
+  },
   applications: {
     type: Number,
     default: 0
-  },
-  ownerId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  status: {
-    type: String,
-    enum: ['active', 'completed', 'archived'],
-    default: 'active'
-  },
-  visibility: {
-    type: String,
-    enum: ['public', 'private'],
-    default: 'public'
   }
 }, {
   timestamps: true

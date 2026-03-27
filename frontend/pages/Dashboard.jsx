@@ -1,16 +1,33 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Users, Bookmark, Settings, MessageSquare, User, CheckCircle, XCircle, Clock, Download } from 'lucide-react';
+import { Users, Bookmark, Settings, MessageSquare, User, CheckCircle, XCircle, Clock, Download, FileText } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProjects } from '../context/ProjectContext';
 import { useNotifications } from '../context/NotificationContext';
 import UserAvatar from '../components/UserAvatar';
 import ProfileModal from '../components/ProfileModal';
+import ProjectModal from '../components/ProjectModal';
 import CollaborationSpace from '../components/CollaborationSpace';
 import './Dashboard.css';
 import ProjectCard from '../components/ProjectCard'; // Added import for ProjectCard
 
 // Dashboard component displays the main dashboard UI for authenticated users
+// 
+// APPLICATION COLLECTION STRUCTURE (from SYSTEM_FLOW_DATABASE_SCHEMA.md):
+// - Each user has ONE Application document (userId is unique)
+// - applications_received[]: Applications this user received as project owner
+//   - Contains: applicantId, applicantName, applicantEmail, applicantAvatar, applicantTitle, applicantLocation
+//   - Project info: projectId, projectName, projectStage
+//   - Application: position, message, skills, status (PENDING/ACCEPTED/REJECTED/REMOVED)
+//   - Resume: hasResume, resumeUrl, resumeFileName, attachments[]
+//   - Review: reviewNotes, reviewedAt, reviewedBy, rating, removedFromTeamAt, removalReason
+// - applications_sent[]: Applications this user sent as applicant
+//   - Contains: projectOwnerId, projectOwnerName, projectOwnerEmail, projectOwnerAvatar
+//   - Project info: projectId, projectName, projectStage, projectIndustry
+//   - Application: position, message, skills, status (PENDING/ACCEPTED/REJECTED/WITHDRAWN/REMOVED)
+//   - Resume: hasResume, resumeUrl, resumeFileName, attachments[]
+//   - Review: reviewNotes, reviewedAt, reviewedBy, rejectionReason, removedFromTeamAt, removalReason
+// - stats: Aggregated counts for both received and sent applications
 function Dashboard() {
   // Get current user from AuthContext
   const { user } = useAuth();
@@ -20,7 +37,9 @@ function Dashboard() {
   const { 
     projects, 
     bookmarkedProjects, 
-    applications, 
+    applications,
+    applicationsLoading,
+    fetchApplications,
     acceptApplication, 
     rejectApplication, 
     getReceivedApplications, 
@@ -34,6 +53,8 @@ function Dashboard() {
   const [applicationTab, setApplicationTab] = useState('received');
   // State to track selected user for profile modal
   const [selectedUser, setSelectedUser] = useState(null);
+  // State to track selected project for project modal
+  const [selectedProjectForModal, setSelectedProjectForModal] = useState(null);
   // State to track toast notifications
   const [toast, setToast] = useState({ show: false, message: '', type: '' });
   // State to track collaboration space
@@ -76,15 +97,41 @@ function Dashboard() {
     }
   }, [pendingCollabProjectId, projects]);
 
-  // Get applications for the current user
+  // Refresh applications when switching to applications tab
+  useEffect(() => {
+    if (activeTab === 'applications' && user) {
+      console.log('Applications tab active, refreshing data...');
+      fetchApplications();
+    }
+  }, [activeTab, user]);
+
+  // Get applications for the current user based on the Application collection schema
+  // applications_received: Applications where current user is the project owner
+  // applications_sent: Applications where current user is the applicant
   const receivedApplications = user ? getReceivedApplications(user.id) : [];
   const sentApplications = user ? getSentApplications(user.id) : [];
 
+  // Debug logging
+  useEffect(() => {
+    if (user) {
+      console.log('Dashboard - Current User ID:', user.id);
+      console.log('Dashboard - Total Applications:', applications.length);
+      console.log('Dashboard - Received Applications (as project owner):', receivedApplications.length);
+      console.log('Dashboard - Sent Applications (as applicant):', sentApplications.length);
+      
+      if (applications.length > 0) {
+        console.log('Sample Application:', applications[0]);
+      }
+    }
+  }, [user, applications, receivedApplications.length, sentApplications.length]);
+
   // Filter applications based on the selected tab
+  // 'received' tab shows applications_received (user is project owner)
+  // 'sent' tab shows applications_sent (user is applicant)
   const filteredApplications = applicationTab === 'received' ? receivedApplications : sentApplications;
 
-  // Get real application counts
-  const receivedApplicationsCount = receivedApplications.filter(app => app.status === 'PENDING').length;
+  // Get real application counts from the Application collection
+  const receivedApplicationsCount = receivedApplications.length;
   const sentApplicationsCount = sentApplications.length;
 
   // Get bookmarked projects
@@ -93,14 +140,17 @@ function Dashboard() {
   );
 
   // Function to handle accepting an application
-  const handleAcceptApplication = (applicationId) => {
+  const handleAcceptApplication = async (applicationId) => {
     // Find the application
-    const application = applications.find(app => app.id === applicationId);
+    const application = applications.find(app => app.id === applicationId || app.applicationId === applicationId);
     
-    if (!application) return;
+    if (!application) {
+      console.error('Application not found:', applicationId);
+      return;
+    }
     
     // Accept the application using context function
-    const success = acceptApplication(applicationId);
+    const success = await acceptApplication(applicationId);
     
     if (success) {
       // Send acceptance notification to the applicant
@@ -124,18 +174,32 @@ function Dashboard() {
       setTimeout(() => {
         setToast({ show: false, message: '', type: '' });
       }, 3000);
+    } else {
+      // Show error toast
+      setToast({
+        show: true,
+        message: 'Failed to accept application. Please try again.',
+        type: 'error'
+      });
+      
+      setTimeout(() => {
+        setToast({ show: false, message: '', type: '' });
+      }, 2000);
     }
   };
 
   // Function to handle rejecting an application
-  const handleRejectApplication = (applicationId) => {
+  const handleRejectApplication = async (applicationId) => {
     // Find the application
-    const application = applications.find(app => app.id === applicationId);
+    const application = applications.find(app => app.id === applicationId || app.applicationId === applicationId);
     
-    if (!application) return;
+    if (!application) {
+      console.error('Application not found:', applicationId);
+      return;
+    }
     
     // Reject the application using context function
-    const success = rejectApplication(applicationId);
+    const success = await rejectApplication(applicationId);
     
     if (success) {
       // Send rejection notification to the applicant
@@ -156,21 +220,139 @@ function Dashboard() {
       setTimeout(() => {
         setToast({ show: false, message: '', type: '' });
       }, 2000);
+    } else {
+      // Show error toast
+      setToast({
+        show: true,
+        message: 'Failed to reject application. Please try again.',
+        type: 'error'
+      });
+      
+      setTimeout(() => {
+        setToast({ show: false, message: '', type: '' });
+      }, 2000);
     }
   };
 
-  // Function to handle viewing an applicant's profile
-  const handleViewProfile = (applicantId) => {
-    console.log(`Viewing profile for ${applicantId}`);
-    // Find the selected user from applications
-    const application = applications.find(app => app.applicantId === applicantId);
-    if (application && application.userDetails) {
-      // If viewing from "Sent" section, show current user's profile
-      // If viewing from "Received" section, show applicant's profile
-      if (applicationTab === 'sent') {
-        setSelectedUser(user);
+  // Function to handle viewing profile/project based on tab
+  const handleViewProfile = async (application) => {
+    console.log(`Viewing details for application:`, application);
+    
+    // In "Sent" tab: Show project modal (the project you applied to)
+    if (applicationTab === 'sent') {
+      // Find the project from the projects list
+      const project = projects.find(p => 
+        (p.id === application.projectId || p._id === application.projectId)
+      );
+      
+      if (project) {
+        setSelectedProjectForModal(project);
       } else {
+        // If project not in local state, fetch it
+        try {
+          const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+          const projectId = typeof application.projectId === 'object' 
+            ? application.projectId._id || application.projectId.toString() 
+            : application.projectId.toString();
+          
+          const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}`);
+          const result = await response.json();
+          
+          if (result.success && result.data) {
+            const projectData = {
+              ...result.data,
+              id: result.data._id || result.data.id
+            };
+            setSelectedProjectForModal(projectData);
+          } else {
+            console.error('Failed to fetch project:', result.message);
+          }
+        } catch (error) {
+          console.error('Error fetching project:', error);
+        }
+      }
+      return;
+    }
+    
+    // In "Received" tab: Show applicant's profile (who applied to your project)
+    try {
+      // Show loading state
+      setSelectedUser({ loading: true });
+      
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      
+      // Convert applicantId to string for comparison
+      const idToFetch = typeof application.applicantId === 'object' 
+        ? application.applicantId._id || application.applicantId.toString() 
+        : application.applicantId.toString();
+      
+      console.log('Fetching applicant profile for ID:', idToFetch);
+      
+      const response = await fetch(`${apiBaseUrl}/api/users/${idToFetch}/profile`);
+      const result = await response.json();
+      
+      console.log('Fetched user profile result:', result);
+      
+      if (result.success && result.data) {
+        // Add id field if not present
+        const userData = {
+          ...result.data,
+          id: result.data._id || result.data.id
+        };
+        setSelectedUser(userData);
+      } else {
+        console.error('Failed to fetch user profile:', result.message);
+        // Fallback to application userDetails if API fails
+        if (application.userDetails) {
+          setSelectedUser(application.userDetails);
+        } else {
+          setSelectedUser(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      // Fallback to application userDetails
+      if (application.userDetails) {
         setSelectedUser(application.userDetails);
+      } else {
+        setSelectedUser(null);
+      }
+    }
+  };
+
+  // Function to handle viewing project details
+  const handleViewProject = async (application) => {
+    console.log(`Viewing project for application:`, application);
+    
+    // Find the project from the projects list
+    const project = projects.find(p => 
+      (p.id === application.projectId || p._id === application.projectId)
+    );
+    
+    if (project) {
+      setSelectedProjectForModal(project);
+    } else {
+      // If project not in local state, fetch it
+      try {
+        const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const projectId = typeof application.projectId === 'object' 
+          ? application.projectId._id || application.projectId.toString() 
+          : application.projectId.toString();
+        
+        const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}`);
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          const projectData = {
+            ...result.data,
+            id: result.data._id || result.data.id
+          };
+          setSelectedProjectForModal(projectData);
+        } else {
+          console.error('Failed to fetch project:', result.message);
+        }
+      } catch (error) {
+        console.error('Error fetching project:', error);
       }
     }
   };
@@ -290,7 +472,7 @@ function Dashboard() {
         )}
         {activeTab === 'applications' && (
           <div className="applications-content">
-            <h3>Application Management</h3>
+            {/* <h3>Application Management</h3> */}
             
             {/* Tabs for received and sent applications */}
             <div className="applications-tabs">
@@ -309,25 +491,44 @@ function Dashboard() {
             </div>
             
             {/* Applications list */}
-            {filteredApplications.length > 0 ? (
+            {applicationsLoading ? (
+              <div className="empty-applications">
+                <p>Loading applications...</p>
+              </div>
+            ) : filteredApplications.length > 0 ? (
               <div className="applications-list">
                 {filteredApplications.map(application => (
                   <div key={application.id} className="application-item">
-                    {/* Applicant info */}
+                    {/* Applicant info - Display based on tab context */}
                     <div className="applicant-info">
                       <UserAvatar 
-                        user={{ name: application.applicantName }} 
+                        user={{ 
+                          name: applicationTab === 'received' 
+                            ? application.applicantName 
+                            : application.projectOwnerName 
+                        }} 
                         size="medium"
                         className="applicant-avatar"
                       />
                       <div className="applicant-details">
-                        <h4>{application.applicantName}</h4>
-                        <p className="profile-title">{applicationTab === 'sent' ? (user.title || getRoleDisplayTitle(user.role)) : (user.title || 'Member')}</p>
+                        <h4>
+                          {applicationTab === 'received' 
+                            ? application.applicantName 
+                            : application.projectOwnerName}
+                        </h4>
+                        <p className="profile-title">
+                          {applicationTab === 'received' 
+                            ? (application.applicantTitle || 'Member')
+                            : 'Project Owner'}
+                        </p>
+                        {applicationTab === 'received' && application.applicantLocation && (
+                          <span className="applicant-location">{application.applicantLocation}</span>
+                        )}
                         <span>Applied {getRelativeTime(application.appliedDate)}</span>
                       </div>
                     </div>
                     
-                    {/* Application details */}
+                    {/* Application details from Application collection schema */}
                     <div className="application-details">
                       <div className="application-project">
                         <p>{application.projectName}</p>
@@ -345,22 +546,32 @@ function Dashboard() {
                       </p>
                     </div>
                     
-                    {/* Status and actions */}
+                    {/* Status and actions - Aligned with Application schema statuses */}
                     <div className="application-status-actions">
                       <div className={`application-status status-${application.status.toLowerCase()}`}>
                         {application.status === 'PENDING' && <Clock size={16} />}
                         {application.status === 'ACCEPTED' && <CheckCircle size={16} />}
-                        {application.status === 'REJECTED' && <XCircle size={16} />}
+                        {(application.status === 'REJECTED' || application.status === 'WITHDRAWN') && <XCircle size={16} />}
+                        {application.status === 'REMOVED' && <XCircle size={16} />}
                         <span>{application.status}</span>
                       </div>
                       
                       <div className="application-actions">
+                        {applicationTab === 'received' && (
+                          <button 
+                            className="view-profile-btn" 
+                            onClick={() => handleViewProfile(application)}
+                          >
+                            <User size={16} />
+                            Profile
+                          </button>
+                        )}
                         <button 
-                          className="view-profile-btn" 
-                          onClick={() => handleViewProfile(application.applicantId)}
+                          className="view-project-btn" 
+                          onClick={() => handleViewProject(application)}
                         >
-                          <User size={16} />
-                          Profile
+                          <FileText size={16} />
+                          View Project
                         </button>
                         {application.hasResume && (
                           <button 
@@ -372,6 +583,7 @@ function Dashboard() {
                           </button>
                         )}
                         
+                        {/* Only show accept/reject for PENDING applications in received tab */}
                         {application.status === 'PENDING' && applicationTab === 'received' && (
                           <div className="decision-actions">
                             <button 
@@ -395,7 +607,11 @@ function Dashboard() {
               </div>
             ) : (
               <div className="empty-applications">
-                <p>No applications to display.</p>
+                <p>
+                  {applicationTab === 'received' 
+                    ? 'No applications received yet. When users apply to your projects, their applications will appear here in your applications_received array.' 
+                    : 'No applications sent yet. When you apply to projects, your applications will appear here in your applications_sent array.'}
+                </p>
               </div>
             )}
           </div>
@@ -419,6 +635,14 @@ function Dashboard() {
         <ProfileModal
           user={selectedUser}
           onClose={handleCloseProfileModal}
+        />
+      )}
+      
+      {/* Project Modal */}
+      {selectedProjectForModal && (
+        <ProjectModal
+          project={selectedProjectForModal}
+          onClose={() => setSelectedProjectForModal(null)}
         />
       )}
       

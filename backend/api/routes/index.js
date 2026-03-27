@@ -3,6 +3,7 @@ import helloController from "../controllers/helloController.js";
 import contactController from "../controllers/contactController.js";
 import userController from "../controllers/userController.js";
 import dashboardController from "../controllers/dashboardController.js";
+import projectController from "../controllers/projectController.js";
 import { logger } from "../../middleware/auth.js";
 import { validateRegistration } from "../../middleware/validation.js";
 
@@ -19,6 +20,7 @@ router.post("/contact", contactController.submitContact);
 
 // User endpoints
 router.post("/users/login", userController.loginUser);
+router.post("/users/verify-email", userController.verifyUserByEmail);
 router.get("/users", userController.getAllUsers);
 router.get("/users/:id", userController.getUserById);
 router.get("/users/:id/profile", userController.getUserProfile);
@@ -35,8 +37,24 @@ router.get("/dashboard/:userId/bookmarks", dashboardController.getBookmarkedProj
 router.get("/dashboard/:userId/applications", dashboardController.getApplications);
 router.post("/dashboard/:userId/bookmarks", dashboardController.addBookmark);
 router.delete("/dashboard/:userId/bookmarks/:projectId", dashboardController.removeBookmark);
-router.post("/dashboard/:userId/applications", dashboardController.addApplication);
-router.put("/dashboard/:userId/applications/:applicationId", dashboardController.updateApplicationStatus);
+
+// Application endpoints
+router.post("/applications/submit", dashboardController.submitApplication);
+router.patch("/applications/:applicationId/status", dashboardController.updateApplicationStatus);
+router.delete("/applications/:applicationId/withdraw", dashboardController.withdrawApplication);
+router.get("/applications/project/:projectId", dashboardController.getProjectApplications);
+
+// Project endpoints
+router.get("/projects", projectController.getAllProjects);
+router.post("/projects", projectController.createProject);
+router.get("/projects/user/:userId", projectController.getUserProjects);
+router.post("/projects/:id/apply", projectController.incrementApplicationCount);
+router.put("/projects/:id/stage", projectController.updateProjectStage);
+router.post("/projects/:id/team", projectController.addTeamMember);
+router.delete("/projects/:id/team/:userId", projectController.removeTeamMember);
+router.get("/projects/:id", projectController.getProjectById);
+router.put("/projects/:id", projectController.updateProject);
+router.delete("/projects/:id", projectController.deleteProject);
 
 // API info endpoint
 router.get("/", (req, res) => {
@@ -48,6 +66,7 @@ router.get("/", (req, res) => {
       contact: "POST /api/contact",
       users: {
         login: "POST /api/users/login",
+        verifyEmail: "POST /api/users/verify-email",
         getAll: "GET /api/users",
         getById: "GET /api/users/:id",
         getProjects: "GET /api/users/:id/projects",
@@ -64,8 +83,24 @@ router.get("/", (req, res) => {
         getApplications: "GET /api/dashboard/:userId/applications",
         addBookmark: "POST /api/dashboard/:userId/bookmarks",
         removeBookmark: "DELETE /api/dashboard/:userId/bookmarks/:projectId",
-        addApplication: "POST /api/dashboard/:userId/applications",
-        updateApplicationStatus: "PUT /api/dashboard/:userId/applications/:applicationId",
+      },
+      applications: {
+        submit: "POST /api/applications/submit",
+        updateStatus: "PATCH /api/applications/:applicationId/status",
+        withdraw: "DELETE /api/applications/:applicationId/withdraw",
+        getProjectApplications: "GET /api/applications/project/:projectId",
+      },
+      projects: {
+        getAll: "GET /api/projects",
+        getById: "GET /api/projects/:id",
+        create: "POST /api/projects",
+        update: "PUT /api/projects/:id",
+        delete: "DELETE /api/projects/:id",
+        getUserProjects: "GET /api/projects/user/:userId",
+        apply: "POST /api/projects/:id/apply",
+        updateStage: "PUT /api/projects/:id/stage",
+        addTeamMember: "POST /api/projects/:id/team",
+        removeTeamMember: "DELETE /api/projects/:id/team/:userId",
       },
     },
     timestamp: new Date().toISOString(),

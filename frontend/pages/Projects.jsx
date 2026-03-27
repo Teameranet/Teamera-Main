@@ -187,7 +187,7 @@ function Projects({ onProjectClick, onCreateProject, onEditProject }) {
         <div className="projects-grid">
           {filteredProjects.map(project => (
             <ProjectCard
-              key={project.id}
+              key={project.id || project._id}
               project={project}
               onClick={onProjectClick}
             />
