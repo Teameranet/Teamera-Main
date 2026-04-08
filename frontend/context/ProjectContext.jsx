@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { useNotifications } from './NotificationContext';
 
 const ProjectContext = createContext();
 
@@ -24,6 +25,7 @@ export const ProjectProvider = ({ children }) => {
   const [applicationsLoading, setApplicationsLoading] = useState(false);
 
   const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const { fetchNotifications } = useNotifications();
   
   // Function to fetch applications (can be called anytime)
   const fetchApplications = async () => {
@@ -267,6 +269,9 @@ export const ProjectProvider = ({ children }) => {
           });
         }
 
+        // Refresh notifications for the owner (invited members will see theirs on next load)
+        if (founderId) fetchNotifications(founderId);
+
         return newProject;
       } else {
         console.error('Failed to create project:', result.message);
@@ -290,64 +295,80 @@ export const ProjectProvider = ({ children }) => {
       const originalProject = projects[projectIndex];
       const founder = originalProject.teamMembers.find(member => member.role === "Founder");
 
-      // Create updated project object
+      // CRITICAL FIX: Only send fields that are actually being updated
+      // Do NOT send teamMembers unless they are explicitly being changed
+      // This prevents breaking user-project relationships during simple detail updates
       const updatedData = {
-        ...projectData,
+        title: projectData.title,
+        description: projectData.description,
+        stage: projectData.stage,
+        industry: projectData.industry,
+        funding: projectData.funding,
+        openPositions: projectData.openPositions,
+        requiredSkills: projectData.requiredSkills,
         ownerId: originalProject.ownerId
       };
 
-      // Ensure the founder remains in the team members list
-      if (founder) {
-        // Extract founder ID for comparison
-        const founderId = typeof founder.id === 'string' ? founder.id : 
-                         typeof founder._id === 'string' ? founder._id :
-                         founder.id?._id || founder.id?.toString() || 
-                         founder._id?.toString() || null;
-        
-        // Check if founder is already in the team members (by ID or email)
-        const founderExists = updatedData.teamMembers?.some(member => {
-          const memberId = typeof member.id === 'string' ? member.id : 
-                          typeof member._id === 'string' ? member._id :
-                          member.id?._id || member.id?.toString() || 
-                          member._id?.toString() || null;
+      // Only include teamMembers if they were explicitly changed in the edit
+      // This is determined by checking if projectData explicitly includes teamMembers
+      // and if those members differ from the original
+      if (projectData.teamMembers !== undefined) {
+        // Ensure the founder remains in the team members list
+        if (founder) {
+          // Extract founder ID for comparison
+          const founderId = typeof founder.id === 'string' ? founder.id : 
+                           typeof founder._id === 'string' ? founder._id :
+                           founder.id?._id || founder.id?.toString() || 
+                           founder._id?.toString() || null;
           
-          const isSameById = memberId && founderId && memberId === founderId;
-          const isSameByEmail = member.email && founder.email && 
-                               member.email.toLowerCase() === founder.email.toLowerCase();
-          const isSameByRole = member.role === "Founder";
-          
-          return isSameById || isSameByEmail || isSameByRole;
-        }) ?? false;
+          // Check if founder is already in the team members (by ID or email)
+          const founderExists = projectData.teamMembers?.some(member => {
+            const memberId = typeof member.id === 'string' ? member.id : 
+                            typeof member._id === 'string' ? member._id :
+                            member.id?._id || member.id?.toString() || 
+                            member._id?.toString() || null;
+            
+            const isSameById = memberId && founderId && memberId === founderId;
+            const isSameByEmail = member.email && founder.email && 
+                                 member.email.toLowerCase() === founder.email.toLowerCase();
+            const isSameByRole = member.role === "Founder";
+            
+            return isSameById || isSameByEmail || isSameByRole;
+          }) ?? false;
 
-        if (!founderExists) {
-          // Add founder to the beginning of the team members array with properly extracted ID
-          updatedData.teamMembers = [
-            {
-              id: founderId,
-              name: founder.name,
-              role: "Founder",
-              email: founder.email || ''
-            },
-            ...(updatedData.teamMembers || [])
-          ];
+          if (!founderExists) {
+            // Add founder to the beginning of the team members array with properly extracted ID
+            projectData.teamMembers = [
+              {
+                id: founderId,
+                name: founder.name,
+                role: "Founder",
+                email: founder.email || ''
+              },
+              ...(projectData.teamMembers || [])
+            ];
+          }
+          
+          // Final deduplication: Remove any duplicate founders by role
+          const founderCount = projectData.teamMembers.filter(m => m.role === "Founder").length;
+          if (founderCount > 1) {
+            console.warn('Multiple founders detected, removing duplicates');
+            let founderAdded = false;
+            projectData.teamMembers = projectData.teamMembers.filter(member => {
+              if (member.role === "Founder") {
+                if (!founderAdded) {
+                  founderAdded = true;
+                  return true; // Keep the first founder
+                }
+                return false; // Remove subsequent founders
+              }
+              return true; // Keep non-founder members
+            });
+          }
         }
         
-        // Final deduplication: Remove any duplicate founders by role
-        const founderCount = updatedData.teamMembers.filter(m => m.role === "Founder").length;
-        if (founderCount > 1) {
-          console.warn('Multiple founders detected, removing duplicates');
-          let founderAdded = false;
-          updatedData.teamMembers = updatedData.teamMembers.filter(member => {
-            if (member.role === "Founder") {
-              if (!founderAdded) {
-                founderAdded = true;
-                return true; // Keep the first founder
-              }
-              return false; // Remove subsequent founders
-            }
-            return true; // Keep non-founder members
-          });
-        }
+        // Only add teamMembers to update if they were provided
+        updatedData.teamMembers = projectData.teamMembers;
       }
 
       const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}`, {
@@ -478,13 +499,14 @@ export const ProjectProvider = ({ children }) => {
         projectStage: project.stage || '',
         projectIndustry: project.industry || '',
         position: applicationData.position,
+        positionId: applicationData.positionId,
         applicantId: userId,
         applicantName: user.name,
         applicantEmail: user.email,
         applicantAvatar: user.avatar || '',
         applicantTitle: user.title || '',
         applicantLocation: user.location || '',
-        projectOwnerId: project.ownerId || project.ownerId?._id,
+        projectOwnerId: project.ownerId?._id || project.ownerId,
         projectOwnerName: project.teamMembers?.find(m => m.role === 'Founder')?.name || 'Project Owner',
         projectOwnerEmail: project.teamMembers?.find(m => m.role === 'Founder')?.email || '',
         projectOwnerAvatar: project.teamMembers?.find(m => m.role === 'Founder')?.avatar || '',
@@ -516,6 +538,7 @@ export const ProjectProvider = ({ children }) => {
           applicantAvatar: user.avatar || 'U',
           applicantColor: applicationData.applicantColor || '#4f46e5',
           position: applicationData.position,
+          positionId: applicationData.positionId,
           skills: applicationData.skills || [],
           projectId: projectId,
           projectName: project.title,
@@ -542,6 +565,9 @@ export const ProjectProvider = ({ children }) => {
             ? { ...p, applications: (p.applications || 0) + 1 }
             : p
         ));
+
+        // Refresh notifications for current user (applicant)
+        fetchNotifications(userId);
 
         return { success: true };
       } else {
@@ -575,15 +601,7 @@ export const ProjectProvider = ({ children }) => {
 
     console.log('Found project at index:', projectIndex, 'Current team members:', projects[projectIndex].teamMembers.length);
 
-    // Check if user is already a team member
-    const isAlreadyMember = projects[projectIndex].teamMembers.some(
-      member => member.id === userData.id
-    );
 
-    if (isAlreadyMember) {
-      console.log('User is already a team member');
-      return false;
-    }
 
     // Add user to the project's team members
     const updatedProjects = [...projects];
@@ -658,7 +676,8 @@ export const ProjectProvider = ({ children }) => {
         ));
 
         // Refresh project to get updated team
-        const projectResponse = await fetch(`${apiBaseUrl}/api/projects/${application.projectId}`);
+        const appProjectId = application.projectId?._id || application.projectId;
+        const projectResponse = await fetch(`${apiBaseUrl}/api/projects/${appProjectId}`);
         const projectResult = await projectResponse.json();
 
         if (projectResult.success && projectResult.data) {
@@ -667,11 +686,18 @@ export const ProjectProvider = ({ children }) => {
             id: projectResult.data._id || projectResult.data.id
           };
 
-          setProjects(prev => prev.map(p =>
-            (p.id === application.projectId || p._id === application.projectId)
-              ? updatedProject
-              : p
-          ));
+          const projectIdToMatch = String(appProjectId);
+          setProjects(prev => prev.map(p => {
+            const pId = String(p.id || p._id);
+            return pId === projectIdToMatch ? updatedProject : p;
+          }));
+        }
+
+        // Refresh notifications for current user (owner)
+        const savedUser = localStorage.getItem('teamera_user');
+        if (savedUser) {
+          const u = JSON.parse(savedUser);
+          fetchNotifications(u.id || u._id);
         }
 
         return true;
@@ -726,6 +752,13 @@ export const ProjectProvider = ({ children }) => {
             : app
         ));
 
+        // Refresh notifications for current user (owner)
+        const savedUser = localStorage.getItem('teamera_user');
+        if (savedUser) {
+          const u = JSON.parse(savedUser);
+          fetchNotifications(u.id || u._id);
+        }
+
         return true;
       } else {
         console.error('Failed to reject application:', result.message);
@@ -759,8 +792,33 @@ export const ProjectProvider = ({ children }) => {
   };
 
   // Get projects for a specific user
-  const getUserProjects = (userId) => {
-    // First try to get from local state
+  const getUserProjects = async (userId) => {
+    try {
+      // CRITICAL FIX: Use backend API which determines participation based on application status
+      // This is the SINGLE SOURCE OF TRUTH for participation
+      // Backend checks for ACCEPTED or INVITED status in applications_sent
+      const response = await fetch(`${apiBaseUrl}/api/projects/user/${userId}`);
+      const result = await response.json();
+
+      if (result.success) {
+        return {
+          owned: result.data.owned || [],
+          participating: result.data.participating || []
+        };
+      } else {
+        console.error('Failed to fetch user projects:', result.message);
+        // Fallback to local state filtering (less reliable)
+        return getUserProjectsFromLocalState(userId);
+      }
+    } catch (error) {
+      console.error('Error fetching user projects:', error);
+      // Fallback to local state filtering
+      return getUserProjectsFromLocalState(userId);
+    }
+  };
+
+  // Fallback function to get projects from local state
+  const getUserProjectsFromLocalState = (userId) => {
     const owned = projects.filter(project =>
       (project.ownerId === userId || project.ownerId?._id === userId || project.ownerId?.toString() === userId)
     );
@@ -880,11 +938,29 @@ export const ProjectProvider = ({ children }) => {
   // Leave a project the user is participating in
   const leaveProject = async (projectId, userId) => {
     try {
-      // Ensure we have valid IDs
-      const cleanProjectId = projectId?._id || projectId;
-      const cleanUserId = userId?._id || userId;
+      // Ensure we have valid IDs - extract string values more robustly
+      let cleanProjectId = projectId;
+      if (projectId && typeof projectId === 'object') {
+        cleanProjectId = projectId._id || projectId.id;
+      }
+      // Ensure it's a string
+      cleanProjectId = String(cleanProjectId);
+      
+      let cleanUserId = userId;
+      if (userId && typeof userId === 'object') {
+        cleanUserId = userId._id || userId.id;
+      }
+      // Ensure it's a string
+      cleanUserId = String(cleanUserId);
 
-      console.log('leaveProject called with:', { projectId: cleanProjectId, userId: cleanUserId });
+      console.log('leaveProject called with:', { 
+        originalProjectId: projectId,
+        cleanProjectId, 
+        cleanProjectIdType: typeof cleanProjectId,
+        originalUserId: userId,
+        cleanUserId,
+        cleanUserIdType: typeof cleanUserId
+      });
 
       // Find the project
       const project = projects.find(p => (p.id === cleanProjectId || p._id === cleanProjectId));
@@ -901,8 +977,10 @@ export const ProjectProvider = ({ children }) => {
         return false;
       }
 
-      console.log('Making API call to remove team member...');
-      const response = await fetch(`${apiBaseUrl}/api/projects/${cleanProjectId}/team/${cleanUserId}`, {
+      console.log('Removing user from project team...');
+      
+      // Use direct team member removal endpoint with isQuit parameter
+      const response = await fetch(`${apiBaseUrl}/api/projects/${cleanProjectId}/team/${cleanUserId}?isQuit=true`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -913,7 +991,7 @@ export const ProjectProvider = ({ children }) => {
       console.log('API response:', result);
 
       if (result.success) {
-        console.log('Successfully removed from backend, updating local state...');
+        console.log('Successfully left project, updating local state...');
         
         // Update local state - filter out the user from team members
         setProjects(prev => prev.map(p => {
@@ -930,6 +1008,12 @@ export const ProjectProvider = ({ children }) => {
           }
           return p;
         }));
+
+        // Refresh applications to get updated status
+        await fetchApplications();
+
+        // Refresh notifications for current user (member who quit)
+        fetchNotifications(cleanUserId);
 
         // Update user project mapping
         setUserProjectMap(prev => {

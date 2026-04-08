@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Users, Bookmark, Settings, MessageSquare, User, CheckCircle, XCircle, Clock, Download, FileText } from 'lucide-react';
+import { Users, Bookmark, Settings, MessageCircle, User, CheckCircle, XCircle, Clock, Download, FileText, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProjects } from '../context/ProjectContext';
 import { useNotifications } from '../context/NotificationContext';
@@ -24,7 +24,7 @@ import ProjectCard from '../components/ProjectCard'; // Added import for Project
 // - applications_sent[]: Applications this user sent as applicant
 //   - Contains: projectOwnerId, projectOwnerName, projectOwnerEmail, projectOwnerAvatar
 //   - Project info: projectId, projectName, projectStage, projectIndustry
-//   - Application: position, message, skills, status (PENDING/ACCEPTED/REJECTED/WITHDRAWN/REMOVED)
+//   - Application: position, message, skills, status (PENDING/ACCEPTED/REJECTED/QUIT/REMOVED/INVITED)
 //   - Resume: hasResume, resumeUrl, resumeFileName, attachments[]
 //   - Review: reviewNotes, reviewedAt, reviewedBy, rejectionReason, removedFromTeamAt, removalReason
 // - stats: Aggregated counts for both received and sent applications
@@ -46,23 +46,22 @@ function Dashboard() {
     getSentApplications 
   } = useProjects();
   // Get notification functions
-  const { addAcceptanceNotification, addRejectionNotification } = useNotifications();
+  const { addAcceptanceNotification, addRejectionNotification, showToast } = useNotifications();
   // State to manage which tab is active: 'bookmarks' or 'applications'
   const [activeTab, setActiveTab] = useState('bookmarks');
   // State to manage which application sub-tab is active: 'received' or 'sent'
   const [applicationTab, setApplicationTab] = useState('received');
   // State to track selected user for profile modal
   const [selectedUser, setSelectedUser] = useState(null);
-  // State to track selected project for project modal
+  // State to track selected project for project modal (from bookmarks)
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  // State to track selected project for project modal (from applications)
   const [selectedProjectForModal, setSelectedProjectForModal] = useState(null);
-  // State to track toast notifications
-  const [toast, setToast] = useState({ show: false, message: '', type: '' });
   // State to track collaboration space
   const [showCollaborationSpace, setShowCollaborationSpace] = useState(false);
   // State to track the active project in collaboration space
   const [activeCollabProject, setActiveCollabProject] = useState(null);
-  // State to track pending collaboration space opening
-  const [pendingCollabProjectId, setPendingCollabProjectId] = useState(null);
 
   // Handle navigation from notifications
   useEffect(() => {
@@ -78,24 +77,6 @@ function Dashboard() {
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
-
-  // Handle pending collaboration space opening
-  useEffect(() => {
-    if (pendingCollabProjectId) {
-      console.log('Looking for project with ID:', pendingCollabProjectId);
-      console.log('Available projects:', projects.map(p => ({ id: p.id, title: p.title, teamMembers: p.teamMembers.length })));
-      
-      const updatedProject = projects.find(p => p.id === pendingCollabProjectId);
-      if (updatedProject) {
-        console.log('Found updated project:', updatedProject.title, 'with', updatedProject.teamMembers.length, 'team members');
-        setActiveCollabProject(updatedProject);
-        setShowCollaborationSpace(true);
-        setPendingCollabProjectId(null); // Clear the pending state
-      } else {
-        console.log('Project not found yet, waiting for state update...');
-      }
-    }
-  }, [pendingCollabProjectId, projects]);
 
   // Refresh applications when switching to applications tab
   useEffect(() => {
@@ -160,31 +141,29 @@ function Dashboard() {
         application.position
       );
       
-      // Show success toast
-      setToast({
-        show: true,
-        message: `${application.applicantName} has been added to the project`,
-        type: 'success'
+      // Find the project object to pass to the action function
+      const acceptedProject = projects.find(p => p.id === application.projectId);
+
+      showToast({
+        type: 'success',
+        title: 'Application accepted',
+        description: `${application.applicantName} has been added to '${application.projectName}'.`,
+        action: {
+          label: 'Open Workspace',
+          onClick: () => {
+            if (acceptedProject) {
+              setActiveCollabProject(acceptedProject);
+              setShowCollaborationSpace(true);
+            }
+          }
+        }
       });
-      
-      // Set pending collaboration space opening
-      setPendingCollabProjectId(application.projectId);
-      
-      // Hide toast after delay
-      setTimeout(() => {
-        setToast({ show: false, message: '', type: '' });
-      }, 3000);
     } else {
-      // Show error toast
-      setToast({
-        show: true,
-        message: 'Failed to accept application. Please try again.',
-        type: 'error'
+      showToast({
+        type: 'error',
+        title: 'Failed to accept application',
+        description: 'Something went wrong. Please try again.',
       });
-      
-      setTimeout(() => {
-        setToast({ show: false, message: '', type: '' });
-      }, 2000);
     }
   };
 
@@ -209,28 +188,17 @@ function Dashboard() {
         application.position
       );
       
-      // Show toast notification
-      setToast({
-        show: true,
-        message: 'Application has been rejected',
-        type: 'error'
+      showToast({
+        type: 'warning',
+        title: 'Application rejected',
+        description: `${application.applicantName}'s application for '${application.position}' has been declined.`,
       });
-      
-      // Hide toast after delay
-      setTimeout(() => {
-        setToast({ show: false, message: '', type: '' });
-      }, 2000);
     } else {
-      // Show error toast
-      setToast({
-        show: true,
-        message: 'Failed to reject application. Please try again.',
-        type: 'error'
+      showToast({
+        type: 'error',
+        title: 'Failed to reject application',
+        description: 'Something went wrong. Please try again.',
       });
-      
-      setTimeout(() => {
-        setToast({ show: false, message: '', type: '' });
-      }, 2000);
     }
   };
 
@@ -362,6 +330,33 @@ function Dashboard() {
     setSelectedUser(null);
   };
 
+  // Open workspace for a project linked to an application
+  const handleOpenWorkspace = async (application) => {
+    const projectId = typeof application.projectId === 'object'
+      ? application.projectId._id || application.projectId.toString()
+      : application.projectId?.toString();
+
+    let project = projects.find(p => String(p.id || p._id) === String(projectId));
+
+    if (!project) {
+      try {
+        const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${apiBaseUrl}/api/projects/${projectId}`);
+        const result = await response.json();
+        if (result.success && result.data) {
+          project = { ...result.data, id: result.data._id || result.data.id };
+        }
+      } catch (error) {
+        console.error('Error fetching project for workspace:', error);
+      }
+    }
+
+    if (project) {
+      setActiveCollabProject(project);
+      setShowCollaborationSpace(true);
+    }
+  };
+
   // Function to handle sending a message to an applicant
   const handleSendMessage = (applicantId) => {
     console.log(`Sending message to ${applicantId}`);
@@ -455,8 +450,8 @@ function Dashboard() {
                     key={project.id}
                     project={project}
                     onClick={(project) => {
-                      setActiveCollabProject(project);
-                      setShowCollaborationSpace(true);
+                      setSelectedProject(project);
+                      setShowProjectModal(true);
                     }}
                   />
                 ))}
@@ -551,9 +546,14 @@ function Dashboard() {
                       <div className={`application-status status-${application.status.toLowerCase()}`}>
                         {application.status === 'PENDING' && <Clock size={16} />}
                         {application.status === 'ACCEPTED' && <CheckCircle size={16} />}
-                        {(application.status === 'REJECTED' || application.status === 'WITHDRAWN') && <XCircle size={16} />}
+                        {application.status === 'INVITED' && <CheckCircle size={16} />}
+                        {(application.status === 'REJECTED' || application.status === 'QUIT') && <XCircle size={16} />}
                         {application.status === 'REMOVED' && <XCircle size={16} />}
-                        <span>{application.status}</span>
+                        <span>
+                          {application.status === 'QUIT' ? 'Quit' : 
+                           application.status === 'REMOVED' ? 'Removed' :
+                           application.status.charAt(0) + application.status.slice(1).toLowerCase()}
+                        </span>
                       </div>
                       
                       <div className="application-actions">
@@ -580,6 +580,28 @@ function Dashboard() {
                           >
                             <Download size={16} />
                             Resume
+                          </button>
+                        )}
+
+                        {/* My Workspace — Received tab: always visible for project owners */}
+                        {applicationTab === 'received' && (
+                          <button
+                            className="workspace-btn"
+                            onClick={() => handleOpenWorkspace(application)}
+                          >
+                            <MessageCircle size={16} />
+                            My Workspace
+                          </button>
+                        )}
+
+                        {/* My Workspace — Sent tab: only when ACCEPTED or INVITED */}
+                        {applicationTab === 'sent' && (application.status === 'ACCEPTED' || application.status === 'INVITED') && (
+                          <button
+                            className="workspace-btn"
+                            onClick={() => handleOpenWorkspace(application)}
+                          >
+                            <MessageCircle size={16} />
+                            My Workspace
                           </button>
                         )}
                         
@@ -618,18 +640,6 @@ function Dashboard() {
         )}
       </div>
 
-      {/* Toast notification */}
-      {toast.show && (
-        <div className={`toast-notification ${toast.type}`}>
-          <div className="toast-content">
-            <div className="toast-icon">
-              {toast.type === 'success' ? '✓' : '✕'}
-            </div>
-            <div className="toast-message">{toast.message}</div>
-          </div>
-        </div>
-      )}
-      
       {/* Profile Modal */}
       {selectedUser && (
         <ProfileModal
@@ -638,11 +648,33 @@ function Dashboard() {
         />
       )}
       
-      {/* Project Modal */}
+      {/* Project Modal for Bookmarks */}
+      {showProjectModal && selectedProject && (
+        <ProjectModal
+          project={selectedProject}
+          onClose={() => {
+            setShowProjectModal(false);
+            setSelectedProject(null);
+          }}
+          onOpenCollaboration={(project) => {
+            setActiveCollabProject(project);
+            setShowCollaborationSpace(true);
+            setShowProjectModal(false);
+            setSelectedProject(null);
+          }}
+        />
+      )}
+      
+      {/* Project Modal for Applications */}
       {selectedProjectForModal && (
         <ProjectModal
           project={selectedProjectForModal}
           onClose={() => setSelectedProjectForModal(null)}
+          onOpenCollaboration={(project) => {
+            setActiveCollabProject(project);
+            setShowCollaborationSpace(true);
+            setSelectedProjectForModal(null);
+          }}
         />
       )}
       
